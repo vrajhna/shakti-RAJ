@@ -235,7 +235,7 @@ async function render() {
     else if (path === '/applications') html = await Pages.applications();
     else if (Pages['route:' + (seg[0] || '')]) html = await Pages['route:' + seg[0]](seg[1], new URLSearchParams(location.search));
     else html = '<div class="card"><h2>404</h2><a class="btn" href="/" data-link>🏠 Home</a></div>';
-    app.innerHTML = html + `<div class="footer">🌸 SHAKTI • ${S.token ? `<a href="/profile" data-link>👩 ${esc(S.profile.name || 'Profile')}</a>` : `<a href="/login" data-link>🔑 ${t('login')}</a> • <a href="/register" data-link>📝 ${t('signup')}</a>`} • <a href="/settings" data-link>⚙️</a> • <a href="/admin" data-link>🔐</a></div>`;
+    app.innerHTML = html + `<div class="footer">🌸 SHAKTI • ${S.token ? `<a href="/profile" data-link>👩 ${esc(S.profile.name || 'Profile')}</a>` : `<a href="/login" data-link>🔑 ${t('login')}</a> • <a href="/register" data-link>📝 ${t('signup')}</a>`} • <a href="/settings" data-link>⚙️</a> • <a href="/admin" data-link>🔐</a><br><span class="small">build ${(typeof __BUILD_TAG__ !== 'undefined' ? __BUILD_TAG__ : '')} • auto-deploy check</span></div>`;
     window.scrollTo(0, 0); track('page_view', path);
     if (path === '/jobs' && !document.getElementById('fq')) { /* filtered render */ }
   } catch (e) {

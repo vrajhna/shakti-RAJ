@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   base: './',
+  define: {
+    __BUILD_TAG__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ')),
+  },
   server: {
     port: 5173,
     proxy: {
