@@ -1,7 +1,13 @@
-# Cloudflare Pages — connect repo, set:
-#   Build command:  npm run build   (root directory: frontend)
-#   Build output:   dist
-#   Env: VITE_API_URL=https://<railway-api-domain>
-# SPA fallback + security headers are in frontend/public/_redirects and _headers.
+# SHAKTI on Cloudflare Workers (static PWA + /api proxy to Railway)
 name = "shakti-raj"
+main = "worker.js"
 compatibility_date = "2026-11-01"
+
+[assets]
+directory = "./frontend/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# Overridden in dashboard (Settings → Variables). Empty here = configure after Railway deploy.
+[vars]
+API_URL = ""
