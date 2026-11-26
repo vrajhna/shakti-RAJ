@@ -1,0 +1,35 @@
+name: shakti-ci
+on:
+  push:
+    paths: ['backend/**', 'db/**']
+  pull_request:
+    paths: ['backend/**', 'db/**']
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: shakti
+          POSTGRES_PASSWORD: shakti_ci_pw
+          POSTGRES_DB: shakti
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd="pg_isready -U shakti"
+          --health-interval=10s --health-timeout=5s --health-retries=5
+    env:
+      DATABASE_URL: postgres://shakti:shakti_ci_pw@localhost:5433/shakti
+      JWT_SECRET: ci-secret-min-32-chars-0123456789abcdef
+      ADMIN_USERNAME: ci-admin
+      ADMIN_PASSWORD: ci-admin-pw-1234
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-audit --no-fund
+        working-directory: backend
+      - run: npm test
+        working-directory: backend
+      - run: npm audit --audit-level=high
+        working-directory: backend

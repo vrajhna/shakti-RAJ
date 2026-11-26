@@ -1,0 +1,7 @@
+# Cloudflare Pages — connect repo, set:
+#   Build command:  npm run build   (root directory: frontend)
+#   Build output:   dist
+#   Env: VITE_API_URL=https://<railway-api-domain>
+# SPA fallback + security headers are in frontend/public/_redirects and _headers.
+name = "shakti-raj"
+compatibility_date = "2026-11-01"

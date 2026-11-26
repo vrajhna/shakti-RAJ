@@ -1,0 +1,15 @@
+{
+  "name": "shakti-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SHAKTI production frontend — Vite static build for Cloudflare Pages",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.3"
+  }
+}

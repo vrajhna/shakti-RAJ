@@ -1,0 +1,17 @@
+{
+  "name": "shakti-raj",
+  "version": "1.0.0",
+  "description": "SHAKTI — Safe & Flexible Work Discovery Platform for Rural Women (Rajasthan Innovation Challenge prototype)",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

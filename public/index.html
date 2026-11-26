@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SHAKTI — काम, हुनर और सुरक्षित अवसर</title>
+<meta name="description" content="SHAKTI — rural women safe work discovery, home-based work, free learning, Anganwadi finder, SHG & safety. Rajasthan Innovation Challenge prototype.">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B5E20">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div id="topbar">
+  <div class="brand"><span class="logo">🌸</span><span><b>SHAKTI</b><small>काम • हुनर • सुरक्षित अवसर</small></span></div>
+  <div class="top-actions">
+    <button id="langBtn" class="chip" aria-label="language">हिंदी / EN</button>
+    <button id="voiceBtnTop" class="chip voice" aria-label="voice">🎤 <span id="voiceLbl">बोलें</span></button>
+  </div>
+</div>
+<div id="safetyStrip">🛡️ सत्यापित काम ही चुनें — कभी अग्रिम फीस / OTP न दें • हेल्पलाइन <b>181</b> • साइबर <b>1930</b> • <a href="#/safety">सुरक्षा केंद्र</a></div>
+<main id="app" tabindex="-1"></main>
+<nav id="bottomnav" aria-label="main">
+  <a href="#/" data-nav="home">🏠<span>घर</span></a>
+  <a href="#/jobs" data-nav="jobs">🔍<span>काम</span></a>
+  <a href="#/skills" data-nav="skills">📚<span>सीखें</span></a>
+  <a href="#/anganwadi" data-nav="child">👶<span>बच्चे</span></a>
+  <a href="#/help" data-nav="help">❓<span>मदद</span></a>
+</nav>
+<button id="micFab" aria-label="voice assistant">🎤</button>
+<div id="toast" role="status"></div>
+<script src="/app.js"></script>
+</body>
+</html>
