@@ -70,12 +70,14 @@ Pages.home = async () => {
     { img: IMG.hero1, t: hi ? 'पढ़ना कठिन? सुनकर सीखें — सब मुफ्त' : 'Reading hard? Learn by listening — all free', s: hi ? '12 कोर्स • ऑडियो • प्रमाणपत्र' : '12 courses • audio • certificate' },
     { img: IMG.hero4, t: hi ? 'राजस्थान की बेटियां, राजस्थान का गौरव' : 'Daughters of Rajasthan, its pride', s: hi ? 'सुरक्षित काम • सम्मान • स्वतंत्रता' : 'Safe work • dignity • independence' },
   ];
-  const jobs = await api('/api/jobs?verifiedOnly=true&maxDistance=10');
+  const [jobs, hunarRes, empRes] = await Promise.all([
+    api('/api/jobs?verifiedOnly=true&maxDistance=10'),
+    api('/api/hunar').catch(() => ({ profiles: [] })),
+    api('/api/employers').catch(() => ({ employers: [] })),
+  ]);
   const near = (jobs.jobs || []).slice(0, 4);
-  let hunar = [];
-  try { hunar = (await api('/api/hunar')).profiles || []; } catch { }
-  let employers = [];
-  try { employers = (await api('/api/employers')).employers || []; } catch { }
+  const hunar = hunarRes.profiles || [];
+  const employers = empRes.employers || [];
   const stat = `<div class="statgrid">
     <div class="stat"><b>${jobs.count ?? '—'}</b><small>${hi ? 'सत्यापित काम' : 'Verified jobs'}</small></div>
     <div class="stat"><b>12</b><small>${hi ? 'मुफ्त कोर्स' : 'Free courses'}</small></div>

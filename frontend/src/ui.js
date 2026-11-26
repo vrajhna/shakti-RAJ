@@ -44,12 +44,25 @@ export function speak(text) {
 }
 export function listenInto(inputEl, ontext) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { toast(S.lang === 'en' ? 'Voice typing not supported — please type' : 'बोलकर लिखना नहीं है — टाइप करें'); return; }
-  const r = new SR(); r.lang = S.lang === 'en' ? 'en-IN' : 'hi-IN'; r.interimResults = false;
-  toast('🎤 ' + (S.lang === 'en' ? 'Speak…' : 'बोलें…'));
-  r.onresult = e => { const txt = e.results[0][0].transcript; if (inputEl) inputEl.value = txt; if (ontext) ontext(txt); };
-  r.onerror = () => toast('🎤 ' + (S.lang === 'en' ? 'Try again' : 'दोबारा कोशिश करें'));
-  r.start();
+  const needChrome = S.lang === 'en'
+    ? 'Voice needs Chrome + internet. Please type instead — I focused the box for you.'
+    : 'आवाज़ के लिए Chrome + इंटरनेट चाहिए। कृपया टाइप करें — बॉक्स तैयार है।';
+  if (!SR) { toast('🎤 ' + needChrome); try { inputEl && inputEl.focus(); } catch { } return; }
+  if (!window.isSecureContext) { toast('🎤 ' + needChrome); try { inputEl && inputEl.focus(); } catch { } return; }
+  try {
+    const r = new SR(); r.lang = S.lang === 'en' ? 'en-IN' : 'hi-IN'; r.interimResults = false; r.maxAlternatives = 1;
+    toast('🎤 ' + (S.lang === 'en' ? 'Speak now…' : 'अब बोलें…'));
+    let done = false;
+    r.onresult = e => { done = true; const txt = e.results[0][0].transcript; if (inputEl) inputEl.value = txt; if (ontext) ontext(txt); };
+    r.onerror = ev => {
+      const k = (ev && ev.error) || '';
+      if (k === 'not-allowed' || k === 'service-not-allowed') toast('🎤 ' + (S.lang === 'en' ? 'Mic blocked — allow microphone, or type.' : 'माइक बंद है — अनुमति दें या टाइप करें।'));
+      else if (!done) toast('🎤 ' + (S.lang === 'en' ? 'Did not catch — type instead.' : 'सुनाई नहीं दिया — टाइप करें।'));
+      try { inputEl && inputEl.focus(); } catch { }
+    };
+    r.onend = () => { if (!done) { try { inputEl && inputEl.focus(); } catch { } } };
+    r.start();
+  } catch { toast('🎤 ' + needChrome); try { inputEl && inputEl.focus(); } catch { } }
 }
 const U = (id) => `https://images.unsplash.com/${id}?w=800&q=60&auto=format&fit=crop`;
 export const IMG = {
@@ -89,7 +102,7 @@ export function jobCard(j) {
   const blocked = j.status === 'suspended';
   return `<div class="card">
     ${blocked ? `<div class="warnbox">⛔ ${hi ? 'स्कैम पैटर्न पर ब्लॉक — सीखने हेतु दिख रही है। आवेदन बंद।' : 'Blocked scam-pattern demo. Applications closed.'}</div>` : ''}
-    <img class="imgcover ph" loading="lazy" src="${jobImg(j)}" onerror="this.style.display='none'" alt="">
+    <img class="imgcover ph" loading="lazy" decoding="async" src="${jobImg(j)}" onerror="this.style.display='none'" alt="">
     <div style="margin-top:8px"><b style="font-size:19px">${esc(hi ? j.title_hi : j.title_en)}</b></div>
     <div class="kv"><span>${esc(j.employer)} • ${esc(j.village)}, ${esc(j.district)}${j.distance_km ? ' • ' + j.distance_km + ' km' : ''}</span></div>
     <div>${vBadge(j)}${j.home_based ? `<span class="badge b-blue">🏠 ${hi ? 'घर से' : 'Home'}</span>` : ''}${j.childcare ? `<span class="badge b-green">👶 ${hi ? 'बच्चों के साथ' : 'Childcare'}</span>` : ''}</div>
@@ -117,15 +130,15 @@ export function hunarCard(h) {
 export function slideshow(slides) {
   const id = 'ss' + Math.floor(Math.random() * 1e6);
   const dots = slides.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('');
-  const imgs = slides.map(s => `<img class="ph" src="${s.img}" onerror="this.style.display='none'" alt="">`).join('');
+  const imgs = slides.map((s, k) => `<img class="ph" src="${s.img}" ${k === 0 ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"'} onerror="this.style.display='none'" alt="">`).join('');
   const cap = slides[0];
   setTimeout(() => {
     const el = document.getElementById(id); if (!el) return;
     const box = el.querySelector('.slides'), d = el.querySelectorAll('.ss-dots i');
     const capT = el.querySelector('.ss-cap h1'), capP = el.querySelector('.ss-cap p');
     let i = 0;
-    setInterval(() => {
-      if (!document.getElementById(id)) return;
+    const timer = setInterval(() => {
+      if (!document.getElementById(id)) { clearInterval(timer); return; }
       i = (i + 1) % slides.length;
       box.style.transform = `translateX(-${i * 100}%)`;
       d.forEach((x, k) => x.classList.toggle('on', k === i));

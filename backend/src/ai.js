@@ -1,6 +1,8 @@
 'use strict';
 // Meta AI gateway — server-side key only. Graceful fallback to local KB when no key.
-const META_URL = process.env.META_API_URL || 'https://api.meta.ai/v1/chat/completions';
+// Llama API (llama.com) is OpenAI-compatible. If one base URL 404s, try the other.
+const META_URLS = [process.env.META_API_URL, 'https://api.llama.com/v1/chat/completions', 'https://api.meta.ai/v1/chat/completions'].filter(Boolean);
+const META_URL = META_URLS[0];
 const META_MODEL = process.env.META_MODEL || 'muse-spark-1.3';
 const META_KEY = () => process.env.META_API_KEY || '';
 
@@ -8,19 +10,26 @@ function aiEnabled() { return !!META_KEY(); }
 
 async function metaChat(messages, maxTokens = 800) {
   if (!aiEnabled()) return null;
-  const ctrl = new AbortController();
-  const to = setTimeout(() => ctrl.abort(), 30000);
-  try {
-    const r = await fetch(META_URL, {
-      method: 'POST', signal: ctrl.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + META_KEY() },
-      body: JSON.stringify({ model: META_MODEL, messages, max_completion_tokens: maxTokens, reasoning_effort: 'low' }),
-    });
-    clearTimeout(to);
-    if (!r.ok) { console.error('[ai] meta http', r.status); return null; }
-    const j = await r.json();
-    return (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || null;
-  } catch (e) { clearTimeout(to); console.error('[ai] meta error', String(e.message || e).slice(0, 120)); return null; }
+  for (const base of [...new Set(META_URLS)]) {
+    for (const extra of [{ reasoning_effort: 'low' }, {}]) {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 25000);
+      try {
+        const r = await fetch(base, {
+          method: 'POST', signal: ctrl.signal,
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + META_KEY() },
+          body: JSON.stringify({ model: META_MODEL, messages, max_completion_tokens: maxTokens, ...extra }),
+        });
+        clearTimeout(to);
+        if (!r.ok) { console.error('[ai] meta http', r.status, base); continue; }
+        const j = await r.json();
+        const txt = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || null;
+        if (txt) { if (base !== META_URL) console.log('[ai] working base:', base); return txt; }
+        console.error('[ai] meta empty content', base);
+      } catch (e) { clearTimeout(to); console.error('[ai] meta error', String(e.message || e).slice(0, 120), base); }
+    }
+  }
+  return null;
 }
 
 const SYSTEM = `You are SHAKTI Sahayak, a kind Rajasthan women-livelihood helper. Reply in the user's language (simple Hindi default, simple English when asked), under 150 words. RULES: (1) Never invent jobs, employers, verification, pay, schemes, or deadlines — use only the verified context given. (2) Never say an unverified listing is safe. (3) Always warn: never pay advance/registration fee, never share OTP/Aadhaar/bank details. (4) Suggest verified filters, SHG groups, free courses, Anganwadi search, helplines 181/1930.`;
