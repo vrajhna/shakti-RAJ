@@ -150,8 +150,9 @@ export function slideshow(slides) {
     <div class="ss-cap"><h1>${esc(cap.t)}</h1><p>${esc(cap.s)}</p></div>
     <div class="ss-dots">${dots}</div></div>`;
 }
-// delegate data-link + data-speak clicks (SPA)
+// delegate data-link + data-speak clicks (SPA) + Enter-key submits (mobile Go button)
 export function wireGlobal() {
+  if (wireGlobal._done) return; wireGlobal._done = true;
   document.addEventListener('click', e => {
     const a = e.target.closest('a[data-link]');
     if (a) { e.preventDefault(); nav(a.getAttribute('href')); return; }
@@ -159,6 +160,18 @@ export function wireGlobal() {
     if (sp) { speak(sp.getAttribute('data-speak')); return; }
     const mi = e.target.closest('#micFab');
     if (mi) { nav('/voice'); return; }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || !e.target.matches('input')) return;
+    const id = e.target.id, p = location.pathname;
+    const run = (fn) => { e.preventDefault(); fn && fn(); };
+    if (id === 'hq') run(p === '/help' ? window._doHelp : window._goSearch);
+    else if (id === 'fq') run(window._doFilter);
+    else if (id === 'vq') run(window._doVoice);
+    else if (id === 'awv') run(() => { location.href = '/anganwadi?v=' + encodeURIComponent(e.target.value); });
+    else if (id === 'fb') run(window._doFeedback);
+    else if (id === 'rname' || id === 'rphone' || id === 'rpin' || id === 'rvill') run(window._doRegister);
+    else if (id === 'lphone' || id === 'lpin') run(window._doLogin);
   });
 }
 export let nav = (p) => { location.href = p; };
