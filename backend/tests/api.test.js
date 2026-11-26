@@ -92,6 +92,14 @@ test('courses + cert + safety + voice + calc', async () => {
   const calc = await post('/api/business/calc', { material: 200, packing: 20, transport: 30, hours: 5 });
   assert.ok(calc.j.price > calc.j.cost);
 });
+test('hunar showcase: list, create, moderation guard', async () => {
+  const l = await get('/api/hunar');
+  assert.ok(l.s === 200 && l.j.count >= 0);
+  const bad = await post('/api/hunar', { name: 'x', phone: '123', skills: [] });
+  assert.equal(bad.s, 400);
+  const ok = await post('/api/hunar', { name: 'Hunar Test', phone: '9829067890', village: 'Test', skills: ['सिलाई'] });
+  assert.equal(ok.s, 200);
+});
 test('admin login + overview + moderation guard', async () => {
   const no = await get('/api/admin/overview');
   assert.equal(no.s, 401);

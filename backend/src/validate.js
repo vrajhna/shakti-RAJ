@@ -47,7 +47,7 @@ const employerSchema = z.object({
   job: z.string().trim().max(500).optional().default(''),
 });
 const moderateSchema = z.object({
-  kind: z.enum(['job', 'report', 'employer']),
+  kind: z.enum(['job', 'report', 'employer', 'hunar']),
   id: id,
   status: z.string().trim().min(2).max(30),
   suspendJob: z.boolean().optional().default(false),

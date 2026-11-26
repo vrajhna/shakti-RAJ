@@ -8,6 +8,7 @@ const { query } = require('./db');
 const { hashPin, checkPin, signUser, signAdmin, requireUser, requireAdmin } = require('./auth');
 const { registerSchema, loginSchema, adminLoginSchema, applySchema, reportSchema, certSchema, calcSchema, employerSchema, moderateSchema, feedbackSchema, validate } = require('./validate');
 const { aiEnabled, metaChat, SYSTEM, localAssist, META_MODEL } = require('./ai');
+const { hunarSchema, interestSchema } = require('./validateHunar');
 
 function makeApp() {
   const app = express();
@@ -248,6 +249,57 @@ function makeApp() {
     res.json({ cost, labour, price, profit, formula_hi: `लागत ₹${cost} → सुझाव दाम ₹${price} (लाभ ₹${profit})`, formula_en: `Cost ₹${cost} → suggested price ₹${price} (profit ₹${profit})` });
   });
 
+  /* ---------- hunar: skilled-women talent showcase ---------- */
+  function maskPhone(p, authed) {
+    if (authed) return p;
+    const d = String(p || '').replace(/[^0-9]/g, '');
+    if (d.length < 4) return '***';
+    return d.slice(0, 2) + 'XXXX' + d.slice(-2) + ' (लॉगिन पर पूरा नंबर)';
+  }
+  app.get('/api/hunar', async (req, res) => {
+    const t = me(req);
+    const district = req.query.district || '', skill = (req.query.skill || '').toLowerCase();
+    const conds = [`status='approved'`]; const p = [];
+    if (district) { p.push(district); conds.push(`district=$${p.length}`); }
+    if (req.query.home === 'true') conds.push(`available_home=true`);
+    if (skill) { p.push(`%${skill}%`); conds.push(`(LOWER(array_to_string(skills,' ')) LIKE $${p.length} OR LOWER(expected_work) LIKE $${p.length})`); }
+    const r = await query(`SELECT * FROM hunar_profiles WHERE ${conds.join(' AND ')} ORDER BY verified DESC, views DESC LIMIT 60`, p);
+    const out = r.rows.map(x => ({ ...x, phone: maskPhone(x.phone, !!(t && t.role === 'user')) }));
+    res.json({ count: r.rowCount, profiles: out, note: 'सत्यापित हुनर प्रोफाइल। संपर्क हेतु लॉगिन करें।' });
+  });
+  app.get('/api/hunar/skills', async (req, res) => {
+    const r = await query(`SELECT DISTINCT unnest(skills) AS s FROM hunar_profiles WHERE status='approved' ORDER BY 1 LIMIT 60`);
+    res.json({ skills: r.rows.map(x => x.s) });
+  });
+  app.get('/api/hunar/:id', async (req, res) => {
+    const t = me(req);
+    const r = await query(`SELECT * FROM hunar_profiles WHERE id=$1`, [req.params.id]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'not found' });
+    await query(`UPDATE hunar_profiles SET views=views+1 WHERE id=$1`, [req.params.id]).catch(() => {});
+    const x = r.rows[0];
+    if (x.status !== 'approved' && !(t && String(t.role).startsWith('admin'))) return res.status(404).json({ error: 'not found' });
+    res.json({ profile: { ...x, phone: maskPhone(x.phone, !!(t && (t.role === 'user' || String(t.role).startsWith('admin')))) } });
+  });
+  app.post('/api/hunar', async (req, res) => {
+    const v = hunarSchema.safeParse(req.body);
+    if (!v.success) return res.status(400).json({ error: 'invalid input', issues: v.error.issues.slice(0, 5) });
+    const t = me(req);
+    const id = 'h' + Date.now().toString(36);
+    await query(`INSERT INTO hunar_profiles(id,user_id,name,phone,village,district,skills,experience,expected_work,available_home) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [id, t && t.role === 'user' ? t.sub : null, v.data.name, v.data.phone, v.data.village, v.data.district, v.data.skills, v.data.experience, v.data.expected_work, v.data.available_home]);
+    audit(t ? t.sub : v.data.phone, 'hunar_create', id);
+    res.json({ ok: true, profile: { id }, message_hi: 'आपका हुनर प्रोफाइल मिल गया! जांच के बाद कंपनियां/SHG देख पाएंगे।', message_en: 'Skill profile received! Visible after verification.' });
+  });
+  app.post('/api/hunar/:id/interest', async (req, res) => {
+    const v = interestSchema.safeParse(req.body);
+    if (!v.success) return res.status(400).json({ error: 'invalid input' });
+    const h = await query(`SELECT id FROM hunar_profiles WHERE id=$1 AND status='approved'`, [req.params.id]);
+    if (!h.rows[0]) return res.status(404).json({ error: 'not found' });
+    const id = 'hi' + Date.now().toString(36);
+    await query(`INSERT INTO hunar_interests(id,hunar_id,by_name,by_contact,message) VALUES($1,$2,$3,$4,$5)`, [id, req.params.id, v.data.by_name, v.data.by_contact, v.data.message]);
+    res.json({ ok: true, message_hi: 'रुचि दर्ज! महिला से संपर्क कराया जाएगा।', message_en: 'Interest recorded!' });
+  });
+
   /* ---------- employers ---------- */
   app.get('/api/employers', async (req, res) => {
     const r = await query(`SELECT * FROM employers WHERE status='approved' ORDER BY created_at DESC`);
@@ -330,7 +382,7 @@ function makeApp() {
     res.json({ ok: true, token: signAdmin(a), role: a.role });
   });
   app.get('/api/admin/overview', requireAdmin(), async (req, res) => {
-    const c = await query(`SELECT (SELECT COUNT(*) FROM jobs) jobs, (SELECT COUNT(*) FROM jobs WHERE status='published') published, (SELECT COUNT(*) FROM jobs WHERE status='suspended') suspended, (SELECT COUNT(*) FROM jobs WHERE verified) verified, (SELECT COUNT(*) FROM applications) applications, (SELECT COUNT(*) FROM reports) reports, (SELECT COUNT(*) FROM reports WHERE status='new') open_reports, (SELECT COUNT(*) FROM certificates) certificates, (SELECT COUNT(*) FROM employer_requests WHERE status='pending') pending_employers, (SELECT COUNT(*) FROM feedback) feedback, (SELECT COUNT(*) FROM analytics_events) events`);
+    const c = await query(`SELECT (SELECT COUNT(*) FROM jobs) jobs, (SELECT COUNT(*) FROM jobs WHERE status='published') published, (SELECT COUNT(*) FROM jobs WHERE status='suspended') suspended, (SELECT COUNT(*) FROM jobs WHERE verified) verified, (SELECT COUNT(*) FROM applications) applications, (SELECT COUNT(*) FROM reports) reports, (SELECT COUNT(*) FROM reports WHERE status='new') open_reports, (SELECT COUNT(*) FROM certificates) certificates, (SELECT COUNT(*) FROM employer_requests WHERE status='pending') pending_employers, (SELECT COUNT(*) FROM feedback) feedback, (SELECT COUNT(*) FROM analytics_events) events, (SELECT COUNT(*) FROM hunar_profiles WHERE status='approved') hunar, (SELECT COUNT(*) FROM hunar_profiles WHERE status='pending') pending_hunar`);
     const byE = await query(`SELECT event, COUNT(*) n FROM analytics_events GROUP BY 1 ORDER BY 2 DESC LIMIT 15`);
     const byP = await query(`SELECT page, COUNT(*) n FROM analytics_events GROUP BY 1 ORDER BY 2 DESC LIMIT 15`);
     const recent = await query(`SELECT * FROM analytics_events ORDER BY id DESC LIMIT 10`);
@@ -347,6 +399,11 @@ function makeApp() {
     const r = await query(`SELECT * FROM jobs ORDER BY created_at DESC`);
     res.json({ jobs: r.rows });
   });
+  app.get('/api/admin/hunar', requireAdmin(), async (req, res) => {
+    const r = await query(`SELECT * FROM hunar_profiles ORDER BY created_at DESC LIMIT 100`);
+    const i = await query(`SELECT * FROM hunar_interests ORDER BY created_at DESC LIMIT 100`);
+    res.json({ profiles: r.rows, interests: i.rows });
+  });
   app.post('/api/admin/moderate', requireAdmin(['super_admin', 'moderator', 'verifier']), validate(moderateSchema), async (req, res) => {
     const { kind, id, status, suspendJob } = req.valid;
     if (kind === 'job') {
@@ -361,6 +418,12 @@ function makeApp() {
       if (suspendJob && r.rows[0].job_id) await query(`UPDATE jobs SET status='suspended', verified=false WHERE id=$1`, [r.rows[0].job_id]);
       audit(req.auth.sub, 'moderate_report', id + '=' + status);
       return res.json({ ok: true, report: r.rows[0] });
+    }
+    if (kind === 'hunar') {
+      const r = await query(`UPDATE hunar_profiles SET status=$2, verified = CASE WHEN $2='approved' THEN true ELSE false END WHERE id=$1 RETURNING *`, [id, status]);
+      if (!r.rows[0]) return res.status(404).json({ error: 'hunar not found' });
+      audit(req.auth.sub, 'moderate_hunar', id + '=' + status);
+      return res.json({ ok: true, profile: r.rows[0] });
     }
     const r = await query(`UPDATE employer_requests SET status=$2 WHERE id=$1 RETURNING *`, [id, status]);
     if (!r.rows[0]) return res.status(404).json({ error: 'not found' });

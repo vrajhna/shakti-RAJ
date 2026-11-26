@@ -4,29 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SHAKTI — काम, हुनर और सुरक्षित अवसर</title>
-<meta name="description" content="SHAKTI — rural women safe work discovery, home-based work, free learning, Anganwadi finder, SHG & safety. Rajasthan Innovation Challenge.">
+<meta name="description" content="SHAKTI — Rajasthan rural women: verified jobs, home-based work, free learning, Anganwadi finder, SHG, skill showcase, safety. Rajasthan Innovation Challenge.">
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#1B5E20">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>">
+<meta name="theme-color" content="#7A2E1F">
 </head>
 <body>
 <div id="topbar">
-  <div class="brand"><span class="logo">🌸</span><span><b>SHAKTI</b><small>काम • हुनर • सुरक्षित अवसर</small></span></div>
-  <div class="top-actions">
-    <button id="langBtn" class="chip" aria-label="language">हिंदी / EN</button>
-    <button id="voiceBtnTop" class="chip voice" aria-label="voice">🎤 <span id="voiceLbl">बोलें</span></button>
-  </div>
+  <button id="menuBtn" aria-label="Menu">☰</button>
+  <a href="/" data-link class="brand"><span class="logo">🌸</span><span><b>SHAKTI</b><small id="tagline">काम • हुनर • सुरक्षित अवसर</small></span></a>
+  <a href="/help" data-link class="topchat" aria-label="Ask">🤖</a>
 </div>
-<div id="safetyStrip">🛡️ सत्यापित काम ही चुनें — कभी अग्रिम फीस / OTP न दें • हेल्पलाइन <b>181</b> • साइबर <b>1930</b> • <a href="#/safety">सुरक्षा केंद्र</a></div>
-<main id="app" tabindex="-1"></main>
-<nav id="bottomnav" aria-label="main">
-  <a href="#/" data-nav="home">🏠<span>घर</span></a>
-  <a href="#/jobs" data-nav="jobs">🔍<span>काम</span></a>
-  <a href="#/skills" data-nav="skills">📚<span>सीखें</span></a>
-  <a href="#/anganwadi" data-nav="child">👶<span>बच्चे</span></a>
-  <a href="#/help" data-nav="help">❓<span>मदद</span></a>
-</nav>
-<button id="micFab" aria-label="voice assistant">🎤</button>
-<div id="toast" role="status"></div>
+<nav id="side" aria-label="Main"></nav>
+<div id="scrim"></div>
+<div id="strip" style="background:#FFF3CD;border-bottom:2px solid #f0d48a;padding:7px 12px;font-size:14px;text-align:center"></div>
+<main id="app" aria-live="polite"></main>
+<nav id="bottomnav"></nav>
+<button id="micFab" aria-label="voice assistant" style="position:fixed;right:16px;bottom:92px;width:64px;height:64px;border-radius:50%;font-size:30px;background:#FFC93C;border:3px solid #3a2a00;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:25">🎤</button>
+<div id="toast"></div>
 <script type="module" src="/src/main.js"></script>
 </body>
 </html>
