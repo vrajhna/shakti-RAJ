@@ -3,6 +3,7 @@ WORKDIR /app
 COPY backend/package.json backend/package-lock.json* ./
 RUN npm install --omit=dev --no-audit --no-fund
 COPY backend/src ./src
+COPY db ./db
 RUN chown -R node:node /app
 USER node
 ENV NODE_ENV=production

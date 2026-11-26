@@ -74,16 +74,20 @@ Pages.home = async () => {
   const near = (jobs.jobs || []).slice(0, 4);
   let hunar = [];
   try { hunar = (await api('/api/hunar')).profiles || []; } catch { }
+  let employers = [];
+  try { employers = (await api('/api/employers')).employers || []; } catch { }
   const stat = `<div class="statgrid">
     <div class="stat"><b>${jobs.count ?? '—'}</b><small>${hi ? 'सत्यापित काम' : 'Verified jobs'}</small></div>
     <div class="stat"><b>12</b><small>${hi ? 'मुफ्त कोर्स' : 'Free courses'}</small></div>
     <div class="stat"><b>${hunar.length}</b><small>${hi ? 'हुनर प्रोफाइल' : 'Skill profiles'}</small></div>
     <div class="stat"><b>181</b><small>${hi ? 'महिला हेल्पलाइन' : 'Women helpline'}</small></div></div>`;
   return `
-  <div class="hero-photo"><div class="grid">
-    <img class="ph" src="${IMG.hero1}" onerror="this.style.display='none'" alt="">
-    <div class="stack"><img class="ph" src="${IMG.hero2}" onerror="this.style.display='none'" alt=""><img class="ph" src="${IMG.hero4}" onerror="this.style.display='none'" alt=""></div>
-  </div><div class="hero-cap"><h1>${hi ? 'नमस्ते बहन 🙏<br>आज क्या करेंगी?' : 'Hello sister 🙏<br>What shall we do today?'}</h1><p>${t('hero_s')}</p></div></div>
+  ${slideshow([
+    { img: IMG.hero1, t: hi ? 'नमस्ते बहन 🙏' : 'Hello sister 🙏', s: hi ? 'आज क्या करेंगी? पास का सत्यापित काम' : 'What shall we do today? Verified nearby work' },
+    { img: IMG.hero2, t: hi ? 'सिलाई-कढ़ाई जानती हैं?' : 'Know stitching & embroidery?', s: hi ? 'हुनर दिखाएं — कंपनियां खोज रही हैं' : 'Showcase skill — companies are hiring' },
+    { img: IMG.hero3, t: hi ? 'अचार-मसाले-पापड़' : 'Pickles, spices & papad', s: hi ? 'SHG समूह से जुड़ें, बाज़ार पाएं' : 'Join SHG groups, reach markets' },
+    { img: IMG.hero4, t: hi ? 'राजस्थान की बेटियां' : 'Daughters of Rajasthan', s: hi ? 'सुरक्षित काम • सम्मान • स्वतंत्रता' : 'Safe work • dignity • independence' },
+  ])}
   <div class="searchwrap"><div class="searchbar"><input id="hq" placeholder="${t('search_ph')}"><button onclick="window._goSearch()">🔍</button>
     <button onclick="listenInto(document.getElementById('hq'))" title="voice">🎤</button></div></div>
   <div class="ticker">🌸 ${hi ? '75% से अधिक ग्रामीण महिलाएं असंगठित श्रम में — SHAKTI उन्हें सुरक्षित, सत्यापित, घर-पास के काम से जोड़ता है • कभी फीस/OTP न दें' : '75%+ rural women in informal labour — SHAKTI connects them to safe, verified, nearby work • never pay fees/OTP'}</div>
@@ -98,6 +102,10 @@ Pages.home = async () => {
   ${stat}
   <div class="card"><h2>✨ ${t('near_you')}</h2>${near.map(jobCard).join('') || `<p>${hi ? 'जल्द आ रहा है' : 'Coming soon'}</p>`}
     <a class="btn sec" href="/jobs" data-link>${t('jobs')} ➜</a></div>
+  <div class="card"><h2>🏢 ${hi ? 'प्रतिष्ठित कंपनियां — सीधी भर्ती' : 'Reputed companies hiring directly'}</h2>
+    <p>${hi ? 'सत्यापित नियोक्ता। कोई बिचौलिया नहीं, कोई फीस नहीं। अपना हुनर दिखाएं — यही कंपनियां आपको खोजेंगी।' : 'Verified employers. No middlemen, no fees. Showcase your skill — these companies will discover you.'}</p>
+    ${employers.slice(0, 5).map(e => `<div class="kv"><span>✅ <b>${esc(e.name)}</b> • ${esc(e.type)} • ${esc(e.district)}</span></div>`).join('') || `<p>${hi ? 'जल्द आ रहा है' : 'Coming soon'}</p>`}
+    <div class="btnrow"><a class="btn" href="/hunar/new" data-link>🌟 ${t('show_hunar')}</a><a class="btn sec" href="/employer" data-link>${t('employer')} ➜</a></div></div>
   <h2 style="margin:18px 0 4px">🌟 ${t('spotlight')}</h2>
   <div class="photogrid">
     <a class="photocard" href="/hunar" data-link><img class="ph" loading="lazy" src="${IMG.tailoring}" onerror="this.style.display='none'"><span class="lbl">🧵 ${hi ? 'सिलाई-कढ़ाई' : 'Stitching'}<small>${hi ? 'हुनर दिखाएं' : 'Showcase'}</small></span></a>
