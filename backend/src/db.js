@@ -19,8 +19,25 @@ async function query(text, params) {
   return pool.query(text, params);
 }
 
+function migrationsDir() {
+  // Layout-proof: works whether running from repo, backend/, or /app in Docker
+  // (Railway root context, local dev, tests) — picks the first existing dir.
+  const cands = [
+    path.join(__dirname, '..', '..', 'db', 'migrations'), // repo: backend/src → db/migrations
+    path.join(process.cwd(), 'db', 'migrations'),         // cwd-based
+    '/app/db/migrations',                                 // Docker absolute
+    path.join(__dirname, '..', 'db', 'migrations'),       // backend-root alternative
+  ];
+  for (const d of cands) {
+    try { if (fs.statSync(d).isDirectory()) return d; } catch {}
+  }
+  console.error('[migrate] no migrations dir found. tried:', cands.join(' | '));
+  return cands[0];
+}
+
 async function migrate() {
-  const dir = path.join(__dirname, '..', '..', 'db', 'migrations');
+  const dir = migrationsDir();
+  console.log('[migrate] using', dir);
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
   await query(`CREATE TABLE IF NOT EXISTS schema_migrations(filename TEXT PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT now())`);
   for (const f of files) {
