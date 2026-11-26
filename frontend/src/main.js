@@ -1,4 +1,5 @@
 import { LANGS, t, getLang, setLang } from './i18n.js';
+import './styles.css';
 import { S, saveProfile, toast, esc, api, track, speak, listenInto, IMG, jobImg, vBadge, jobCard, hunarCard, slideshow, wireGlobal, setNav } from './ui.js';
 import { registerPages } from './pages2.js';
 
@@ -40,6 +41,15 @@ function shell() {
   document.getElementById('langSel').onchange = e => { setLang(e.target.value); shell(); render(); };
   document.getElementById('micTop').onclick = () => { closeMenu(); nav('/voice'); };
   document.getElementById('speakTop').onclick = () => speak(document.getElementById('app').innerText.slice(0, 300));
+  const lt = document.getElementById('langTop');
+  if (lt && !lt.options.length) lt.innerHTML = LANGS.map(l => `<option value="${l.v}">${l.n}</option>`).join('');
+  if (lt) { lt.value = getLang(); lt.onchange = e => { setLang(e.target.value); shell(); render(); }; }
+  const tb = (id, fn) => { const b = document.getElementById(id); if (b) b.onclick = fn; };
+  tb('tMic', () => nav('/voice'));
+  tb('tSpeak', () => speak(document.getElementById('app').innerText.slice(0, 300)));
+  tb('tFont', () => document.body.classList.toggle('big'));
+  tb('tImg', () => document.body.classList.toggle('noimg'));
+  document.getElementById('speakTop').onclick = () => speak(document.getElementById('app').innerText.slice(0, 300));
   document.getElementById('fontBtn').onclick = () => document.body.classList.toggle('big');
   document.getElementById('imgBtn').onclick = (e) => { document.body.classList.toggle('noimg'); e.target.querySelector('small').textContent = document.body.classList.contains('noimg') ? (hi ? 'फोटो चालू' : 'Pics on') : (hi ? 'फोटो बंद' : 'No pics'); };
 }
@@ -70,10 +80,13 @@ Pages.home = async () => {
     <div class="stat"><b>${hunar.length}</b><small>${hi ? 'हुनर प्रोफाइल' : 'Skill profiles'}</small></div>
     <div class="stat"><b>181</b><small>${hi ? 'महिला हेल्पलाइन' : 'Women helpline'}</small></div></div>`;
   return `
-  ${slideshow(slides)}
+  <div class="hero-photo"><div class="grid">
+    <img class="ph" src="${IMG.hero1}" onerror="this.style.display='none'" alt="">
+    <div class="stack"><img class="ph" src="${IMG.hero2}" onerror="this.style.display='none'" alt=""><img class="ph" src="${IMG.hero4}" onerror="this.style.display='none'" alt=""></div>
+  </div><div class="hero-cap"><h1>${hi ? 'नमस्ते बहन 🙏<br>आज क्या करेंगी?' : 'Hello sister 🙏<br>What shall we do today?'}</h1><p>${t('hero_s')}</p></div></div>
+  <div class="searchwrap"><div class="searchbar"><input id="hq" placeholder="${t('search_ph')}"><button onclick="window._goSearch()">🔍</button>
+    <button onclick="listenInto(document.getElementById('hq'))" title="voice">🎤</button></div></div>
   <div class="ticker">🌸 ${hi ? '75% से अधिक ग्रामीण महिलाएं असंगठित श्रम में — SHAKTI उन्हें सुरक्षित, सत्यापित, घर-पास के काम से जोड़ता है • कभी फीस/OTP न दें' : '75%+ rural women in informal labour — SHAKTI connects them to safe, verified, nearby work • never pay fees/OTP'}</div>
-  <div class="searchbar"><input id="hq" placeholder="${t('search_ph')}"><button onclick="window._goSearch()">🔍</button>
-    <button onclick="listenInto(document.getElementById('hq'))" title="voice">🎤</button></div>
   <div class="grid6">
     <a class="svc" href="/jobs" data-link><span>🔍</span>${t('find_work')}<small>${hi ? 'पास का काम' : 'Nearby jobs'}</small></a>
     <a class="svc" href="/hunar" data-link><span>🌟</span>${t('show_hunar')}<small>${hi ? 'कंपनियां देखें' : 'Seen by companies'}</small></a>
