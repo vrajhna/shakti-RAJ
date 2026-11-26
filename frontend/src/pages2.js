@@ -194,15 +194,20 @@ export function registerPages(Pages) {
     speak(hi() ? r.reply_hi : r.reply_en);
   };
 
-  /* ----- help chat ----- */
+  /* ----- help: FULL-SCREEN chat ----- */
   Pages['route:help'] = async () => {
     const H = hi();
+    const qs = H ? ['घर से काम चाहिए', 'सिलाई आती है', 'धोखे से कैसे बचें?', 'SHG से कैसे जुड़ें?'] : ['Home-based work', 'I know stitching', 'Avoid fraud?', 'Join SHG?'];
     return `<h2>🤖 ${H ? 'SHAKTI सहायक' : 'SHAKTI assistant'}</h2>
-    <div class="chatbox" id="chatbox"><div class="msg b">🌸 ${H ? 'नमस्ते! काम, हुनर, सुरक्षा — कुछ भी पूछें।' : 'Hello! Ask about work, skills, safety.'}</div></div>
-    <div class="chatrow"><input id="hq" placeholder="${H ? 'पूछें…' : 'Ask…'}"><button class="btn yel" onclick="listenInto(document.getElementById('hq'))">🎤</button><button class="btn" onclick="window._doHelp()">💬</button></div>
+    <div class="chatfull">
+      <div class="chatbox" id="chatbox"><div class="msg b">🌸 ${H ? 'नमस्ते! मैं पूरी स्क्रीन पर आपकी मदद के लिए हूं। काम, हुनर, सुरक्षा — कुछ भी पूछें।' : 'Hello! I am here full-screen to help. Ask about work, skills, safety.'}</div></div>
+      <div class="chatqs">${qs.map(q => `<button class="chip" onclick="window._qAsk(this)" data-q="${esc(q)}">💬 ${esc(q)}</button>`).join('')}</div>
+      <div class="chatinput"><div class="chatrow"><input id="hq" enterkeyhint="send" placeholder="${H ? 'पूछें… (Enter दबाएं)' : 'Ask… (press Enter)'}" autocomplete="off"><button class="btn yel" onclick="listenInto(document.getElementById('hq'))" aria-label="voice">🎤</button><button class="btn" onclick="window._doHelp()" aria-label="send">➤</button></div></div>
+    </div>
     <div class="card"><b>📞 ${H ? 'हेल्पलाइन' : 'Helplines'}</b><div class="btnrow"><a class="btn warn" href="tel:181">📞 181</a><a class="btn warn" href="tel:1930">📞 1930</a><a class="btn warn" href="tel:112">📞 112</a></div></div>
-    <div class="card"><b>💡 ${t('feedback')}</b><input id="fb" placeholder="${H ? 'सुझाव लिखें…' : 'Write suggestion…'}"><button class="btn sec" onclick="window._doFeedback()">📩 ${t('submit')}</button></div>`;
+    <div class="card"><b>💡 ${t('feedback')}</b><div class="chatrow"><input id="fb" placeholder="${H ? 'सुझाव लिखें…' : 'Write suggestion…'}"><button class="btn sec" onclick="window._doFeedback()">📩</button></div></div>`;
   };
+  window._qAsk = (b) => { document.getElementById('hq').value = b.getAttribute('data-q'); window._doHelp(); };
   window._doHelp = async () => {
     const q = document.getElementById('hq').value; if (!q.trim()) return;
     const box = document.getElementById('chatbox');
