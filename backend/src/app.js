@@ -177,6 +177,10 @@ function makeApp() {
     await query(`INSERT INTO saved_jobs(user_id,job_id) VALUES($1,$2) ON CONFLICT DO NOTHING`, [req.auth.sub, jobId]);
     res.json({ ok: true });
   });
+  app.get('/api/saved', requireUser, async (req, res) => {
+    const r = await query(`SELECT j.* FROM saved_jobs s JOIN jobs j ON j.id=s.job_id WHERE s.user_id=$1 ORDER BY s.created_at DESC LIMIT 50`, [req.auth.sub]);
+    res.json({ count: r.rowCount, jobs: r.rows });
+  });
 
   /* ---------- courses + certificates ---------- */
   app.get('/api/courses', async (req, res) => {

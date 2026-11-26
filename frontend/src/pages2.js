@@ -4,6 +4,24 @@ import { S, saveProfile, toast, esc, api, track, speak, listenInto, IMG, jobImg,
 export function registerPages(Pages) {
   const hi = () => S.lang !== 'en';
 
+  /* ----- companies: reputed employers hiring directly ----- */
+  Pages['route:companies'] = async () => {
+    const H = hi();
+    const [e, j] = await Promise.all([api('/api/employers'), api('/api/jobs?verifiedOnly=true')]);
+    const byEmp = {};
+    (j.jobs || []).forEach(x => { (byEmp[x.employer] = byEmp[x.employer] || []).push(x); });
+    return `<h2>🏢 ${t('companies')}</h2>
+    <p>${H ? 'ये सत्यापित कंपनियां/संस्थाएं सीधी भर्ती करती हैं — कोई बिचौलिया नहीं, कोई फीस नहीं।' : 'These verified companies hire directly — no middlemen, no fees.'}</p>
+    ${((e.employers || []).map(emp => {
+      const jobs = byEmp[emp.name] || [];
+      return `<div class="card"><b>✅ ${esc(emp.name)}</b> <span class="badge b-blue">${esc(emp.type)}</span>
+      <div class="kv"><span>${esc(emp.district)} • ${jobs.length} ${H ? 'खुली भर्तियां' : 'open roles'}</span></div>
+      ${jobs.slice(0, 4).map(x => `<div class="kv"><span>• ${esc(H ? x.title_hi : x.title_en)} — ${esc(x.pay_hi)}</span><a href="/jobs/${x.id}" data-link>${t('view')} ➜</a></div>`).join('')}
+      <div class="btnrow"><a class="btn sec" href="/hunar/new" data-link>🌟 ${H ? 'हुनर दिखाएं — ये आपको खोजें' : 'Showcase skill — get discovered'}</a></div></div>`;
+    }).join('')) || `<p>${H ? 'जल्द आ रहा है' : 'Coming soon'}</p>`}
+    <div class="card"><b>🏢 ${H ? 'कंपनी हैं? सीधे जुड़ें' : 'A company? Join directly'}</b><p>${H ? 'सत्यापन के बाद आपकी भर्तियां यहां दिखेंगी।' : 'Your openings appear here after verification.'}</p><a class="btn warn" href="/employer" data-link>📝 ${t('employer')}</a></div>`;
+  };
+
   /* ----- home-work ----- */
   Pages['route:home-work'] = async () => {
     const d = await api('/api/jobs?home=true&verifiedOnly=false');
@@ -230,6 +248,8 @@ export function registerPages(Pages) {
   /* ----- profile / settings / auth ----- */
   Pages['route:profile'] = async () => {
     const H = hi(), p = S.profile;
+    let saved = [];
+    if (S.token) { try { saved = (await api('/api/saved')).jobs || []; } catch { } }
     return `<h2>👩 ${H ? 'मेरी प्रोफाइल' : 'My profile'}</h2><div class="card">
     ${S.token ? `<div class="safebox">✅ ${H ? 'लॉगिन हैं' : 'Logged in'} — ${esc(p.phone)}</div>` : `<div class="warnbox">${H ? 'लॉगिन नहीं हैं — आवेदन फोन से दिखेंगे' : 'Not logged in'}</div>`}
     <label>${H ? 'नाम' : 'Name'}</label><input id="pname" value="${esc(p.name)}">
@@ -238,6 +258,7 @@ export function registerPages(Pages) {
     <label>${H ? 'जिला' : 'District'}</label><input id="pdist" value="${esc(p.district || 'Jaipur')}">
     <button class="btn" style="width:100%" onclick="window._saveP()">💾 ${t('save')}</button>
     <div class="btnrow"><a class="btn sec" href="/applications" data-link>📋 ${H ? 'आवेदन' : 'Applications'}</a><a class="btn sec" href="/certificates" data-link>🎓 ${H ? 'प्रमाणपत्र' : 'Certificates'}</a></div>
+    ${S.token ? `<h3>♡ ${t('saved')} (${saved.length})</h3>${saved.map(j => `<div class="kv"><span>• ${esc(H ? j.title_hi : j.title_en)} — ${esc(j.pay_hi)}</span><a href="/jobs/${j.id}" data-link>${t('view')} ➜</a></div>`).join('')}` : ''}
     ${S.token ? `<button class="btn sec" onclick="window._doLogout()">↩ ${t('logout')}</button>` : ''}</div>`;
   };
   window._saveP = () => { S.profile = { name: document.getElementById('pname').value, phone: document.getElementById('pphone').value, village: document.getElementById('pvill').value, district: document.getElementById('pdist').value }; saveProfile(); toast('✅ Saved'); location.href = '/'; };

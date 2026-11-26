@@ -15,7 +15,7 @@ export const LANGS = [
 const D = {
   hi: {
     tagline: 'काम • हुनर • सुरक्षित अवसर', home: 'होम', jobs: 'काम', hunar: 'हुनर', learn: 'सीखें', help: 'सहायता',
-    child: 'बच्चे', shg: 'SHG', biz: 'व्यवसाय', safety: 'सुरक्षा', market: 'बाज़ार', employer: 'नियोक्ता',
+    child: 'बच्चे', shg: 'SHG', biz: 'व्यवसाय', safety: 'सुरक्षा', market: 'बाज़ार', employer: 'नियोक्ता', companies: 'कंपनियां', saved: 'सहेजे हुए',
     admin: 'प्रशासन', analytics: 'एनालिटिक्स', pitch: 'परिचय', about: 'जानकारी', feedback: 'सुझाव',
     hero_t: 'आज आप क्या करना चाहती हैं?', hero_s: 'पास का सत्यापित काम • घर से काम • मुफ्त सीख • आंगनवाड़ी • SHG साथ',
     search_ph: 'खोजें: सिलाई, पापड़, चोमू…', search: 'खोजें', find_work: 'काम ढूंढें', home_work: 'घर से काम',
@@ -99,7 +99,7 @@ const D = {
   },
   en: {
     tagline: 'Work • Skills • Safe Opportunity', home: 'Home', jobs: 'Jobs', hunar: 'Skills', learn: 'Learn', help: 'Help',
-    child: 'Kids', shg: 'SHG', biz: 'Business', safety: 'Safety', market: 'Market', employer: 'Employer',
+    child: 'Kids', shg: 'SHG', biz: 'Business', safety: 'Safety', market: 'Market', employer: 'Employer', companies: 'Companies', saved: 'Saved',
     admin: 'Admin', analytics: 'Analytics', pitch: 'Pitch', about: 'About', feedback: 'Feedback',
     hero_t: 'What would you like to do today?', hero_s: 'Verified nearby work • Home-based • Free learning • Childcare • SHG support',
     search_ph: 'Search: stitching, papad, Chomu…', search: 'Search', find_work: 'Find work', home_work: 'Home-based',

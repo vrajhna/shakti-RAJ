@@ -29,13 +29,29 @@ export default {
         const v = request.headers.get(h);
         if (v) headers.set(h, v);
       }
-      const upstream = await fetch(target, {
-        method: request.method,
-        headers,
-        body: ['GET', 'HEAD'].includes(request.method) ? undefined : await request.arrayBuffer(),
-        redirect: 'manual',
-      });
+      let upstream;
+      try {
+        upstream = await fetch(target, {
+          method: request.method,
+          headers,
+          body: ['GET', 'HEAD'].includes(request.method) ? undefined : await request.arrayBuffer(),
+          redirect: 'manual',
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: 'backend unreachable — Railway service starting? Check deploy logs.' }), {
+          status: 502, headers: { 'content-type': 'application/json', 'access-control-allow-origin': origin },
+        });
+      }
       const out = new Headers(upstream.headers);
+      const ct = (upstream.headers.get('content-type') || '').toLowerCase();
+      if (!ct.includes('json') && !ct.includes('text/')) {
+        // Upstream crashed (Railway HTML error page) — never leak HTML to the app
+        const txt = await upstream.text().catch(() => '');
+        console.log('upstream non-JSON', upstream.status, txt.slice(0, 120));
+        return new Response(JSON.stringify({ error: 'backend error — check Railway deploy logs', status: upstream.status }), {
+          status: 502, headers: { 'content-type': 'application/json', 'access-control-allow-origin': origin },
+        });
+      }
       out.set('access-control-allow-origin', origin);
       out.set('access-control-allow-credentials', 'true');
       out.set('vary', 'Origin');

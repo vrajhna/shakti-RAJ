@@ -100,6 +100,16 @@ test('hunar showcase: list, create, moderation guard', async () => {
   const ok = await post('/api/hunar', { name: 'Hunar Test', phone: '9829067890', village: 'Test', skills: ['सिलाई'] });
   assert.equal(ok.s, 200);
 });
+test('saved jobs need login, work with token', async () => {
+  const no = await get('/api/saved');
+  assert.equal(no.s, 401);
+  const ph = '98' + String(Date.now()).slice(-8);
+  const r = await post('/api/auth/register', { name: 'Save Test', phone: ph, pin: '4321' });
+  const s = await post('/api/saved', { jobId: 'j1' }, r.j.token);
+  assert.equal(s.s, 200);
+  const l = await get('/api/saved', r.j.token);
+  assert.ok(l.j.count >= 1);
+});
 test('admin login + overview + moderation guard', async () => {
   const no = await get('/api/admin/overview');
   assert.equal(no.s, 401);

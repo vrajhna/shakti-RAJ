@@ -17,7 +17,16 @@ export async function api(p, opt = {}) {
   const h = { 'Content-Type': 'application/json' };
   if (S.token) h['Authorization'] = 'Bearer ' + S.token;
   else if (S.adminToken) h['Authorization'] = 'Bearer ' + S.adminToken;
-  const r = await fetch(A(p), { ...opt, headers: { ...h, ...(opt.headers || {}) } });
+  let r;
+  try {
+    r = await fetch(A(p), { ...opt, headers: { ...h, ...(opt.headers || {}) } });
+  } catch {
+    throw new Error(S.lang === 'en' ? 'No connection — check internet and retry.' : 'संपर्क नहीं हो पाया — नेट जांचकर दोबारा कोशिश करें।');
+  }
+  const ct = (r.headers.get('content-type') || '').toLowerCase();
+  if (!ct.includes('json')) {
+    throw new Error(S.lang === 'en' ? 'Server is starting — please retry in a minute.' : 'सर्वर शुरू हो रहा है — एक मिनट बाद दोबारा कोशिश करें।');
+  }
   return r.json();
 }
 export function track(event, page) {
@@ -48,6 +57,14 @@ export const IMG = {
   hero2: U('photo-1558769132-cb1aea4585e5'),
   hero3: U('photo-1596040033229-a9821ebd058d'),
   hero4: U('photo-1599661046289-e31897846e41'),
+  woman: U('photo-1610030469983-98e550d6193c'),
+  field: U('photo-1500382017468-9049fed747ef'),
+  farm: U('photo-1625246333195-78d9c38ad449'),
+  jewel: U('photo-1611591437281-460bfbe1220a'),
+  pottery2: U('photo-1565193566173-7a0ee3dbe261'),
+  land2: U('photo-1477587458883-47145ed94245'),
+  fair: U('photo-1574227492706-f65b24c3688a'),
+  fair2: U('photo-1603262110263-fb0112e7cc33'),
   tailoring: U('photo-1558769132-cb1aea4585e5'),
   food: U('photo-1601050690597-df0568f70950'),
   beauty: U('photo-1560066984-138dadb4c035'),
@@ -59,7 +76,7 @@ export const IMG = {
   market: U('photo-1488459716781-31db52582fe9'),
 };
 export function jobImg(j) {
-  const m = { tailoring: IMG.tailoring, food: IMG.food, beauty: IMG.beauty, craft: IMG.craft, embroidery: IMG.craft, livestock: IMG.dairy, agri: IMG.market, digital: IMG.shg, retail: IMG.market, govt: IMG.kids };
+  const m = { tailoring: IMG.hero2, food: IMG.hero3, beauty: IMG.beauty, craft: IMG.jewel, embroidery: IMG.hero2, livestock: IMG.dairy, agri: IMG.field, digital: IMG.shg, retail: IMG.market, govt: IMG.kids };
   return m[j.category] || IMG.hero2;
 }
 export function vBadge(j) {
@@ -80,6 +97,7 @@ export function jobCard(j) {
     <div class="kv"><span>⏰ ${esc(j.hours)}${j.part_time ? (hi ? ' • पार्ट-टाइम' : ' • Part-time') : ''}</span></div>
     <div class="btnrow">
       <a class="btn" href="/jobs/${j.id}" data-link>${t('view')} ➜</a>
+      <button class="btn sec" onclick="window._saveJob('${j.id}')">♡ ${S.lang === 'en' ? 'Save' : 'सहेजें'}</button>
       <button class="btn yel" data-speak="${esc(hi ? j.title_hi + '. ' + j.desc_hi : j.title_en + '. ' + j.desc_en).slice(0, 300)}">🔊 ${t('listen')}</button>
     </div>
   </div>`;

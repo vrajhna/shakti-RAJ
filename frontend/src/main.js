@@ -15,7 +15,7 @@ function shell() {
   const L = (p, ic, k) => `<a href="${p}" data-link>${ic} <span>${t(k)}</span></a>`;
   document.getElementById('side').innerHTML = `
     ${L('/', '🏠', 'home')}${L('/jobs', '🔍', 'jobs')}${L('/hunar', '🌟', 'hunar')}
-    ${L('/home-work', '🏠', 'home_work')}${L('/skills', '📚', 'learn')}${L('/anganwadi', '👶', 'child')}
+    ${L('/companies', '🏢', 'companies')}${L('/home-work', '🏠', 'home_work')}${L('/skills', '📚', 'learn')}${L('/anganwadi', '👶', 'child')}
     ${L('/shg', '🧵', 'shg')}${L('/business', '🚀', 'biz')}${L('/marketplace', '🛍️', 'market')}
     ${L('/voice', '🎤', 'ask_voice')}${L('/help', '🤖', 'help')}${L('/safety', '🛡️', 'safety')}
     <hr><div class="menu-ctl"><label>🌐 Language / भाषा / बोली</label>
@@ -83,8 +83,10 @@ Pages.home = async () => {
     <div class="stat"><b>181</b><small>${hi ? 'महिला हेल्पलाइन' : 'Women helpline'}</small></div></div>`;
   return `
   ${slideshow([
-    { img: IMG.hero1, t: hi ? 'नमस्ते बहन 🙏' : 'Hello sister 🙏', s: hi ? 'आज क्या करेंगी? पास का सत्यापित काम' : 'What shall we do today? Verified nearby work' },
-    { img: IMG.hero2, t: hi ? 'सिलाई-कढ़ाई जानती हैं?' : 'Know stitching & embroidery?', s: hi ? 'हुनर दिखाएं — कंपनियां खोज रही हैं' : 'Showcase skill — companies are hiring' },
+    { img: IMG.woman, t: hi ? 'नमस्ते बहन 🙏' : 'Hello sister 🙏', s: hi ? 'आज क्या करेंगी? पास का सत्यापित काम' : 'What shall we do today? Verified nearby work' },
+    { img: IMG.hero2, t: hi ? 'सिलाई-कढ़ाई जानती हैं?' : 'Know stitching & embroidery?', s: hi ? 'हुनर दिखाएं — प्रतिष्ठित कंपनियां खोज रही हैं' : 'Showcase skill — reputed companies are hiring' },
+    { img: IMG.jewel, t: hi ? 'ज्वेलरी • पॉटरी • हस्तशिल्प' : 'Jewellery • pottery • handicraft', s: hi ? 'ब्रांड सीधे कारीगरों से जुड़ें' : 'Brands connect directly with artisans' },
+    { img: IMG.field, t: hi ? 'राजस्थान की धरती' : 'Land of Rajasthan', s: hi ? 'मौसमी काम • समूह परिवहन • दैनिक भुगतान' : 'Seasonal work • group transport • daily pay' },
     { img: IMG.hero3, t: hi ? 'अचार-मसाले-पापड़' : 'Pickles, spices & papad', s: hi ? 'SHG समूह से जुड़ें, बाज़ार पाएं' : 'Join SHG groups, reach markets' },
     { img: IMG.hero4, t: hi ? 'राजस्थान की बेटियां' : 'Daughters of Rajasthan', s: hi ? 'सुरक्षित काम • सम्मान • स्वतंत्रता' : 'Safe work • dignity • independence' },
   ])}
@@ -105,7 +107,7 @@ Pages.home = async () => {
   <div class="card"><h2>🏢 ${hi ? 'प्रतिष्ठित कंपनियां — सीधी भर्ती' : 'Reputed companies hiring directly'}</h2>
     <p>${hi ? 'सत्यापित नियोक्ता। कोई बिचौलिया नहीं, कोई फीस नहीं। अपना हुनर दिखाएं — यही कंपनियां आपको खोजेंगी।' : 'Verified employers. No middlemen, no fees. Showcase your skill — these companies will discover you.'}</p>
     ${employers.slice(0, 5).map(e => `<div class="kv"><span>✅ <b>${esc(e.name)}</b> • ${esc(e.type)} • ${esc(e.district)}</span></div>`).join('') || `<p>${hi ? 'जल्द आ रहा है' : 'Coming soon'}</p>`}
-    <div class="btnrow"><a class="btn" href="/hunar/new" data-link>🌟 ${t('show_hunar')}</a><a class="btn sec" href="/employer" data-link>${t('employer')} ➜</a></div></div>
+    <div class="btnrow"><a class="btn" href="/companies" data-link>🏢 ${t('companies')} ➜</a><a class="btn sec" href="/hunar/new" data-link>🌟 ${t('show_hunar')}</a></div></div>
   <h2 style="margin:18px 0 4px">🌟 ${t('spotlight')}</h2>
   <div class="photogrid">
     <a class="photocard" href="/hunar" data-link><img class="ph" loading="lazy" src="${IMG.tailoring}" onerror="this.style.display='none'"><span class="lbl">🧵 ${hi ? 'सिलाई-कढ़ाई' : 'Stitching'}<small>${hi ? 'हुनर दिखाएं' : 'Showcase'}</small></span></a>
@@ -208,6 +210,11 @@ Pages.applications = async () => {
   ${(d.applications || []).map(a => `<div class="card"><b>${esc(a.jobTitle || a.jobId)}</b> <span class="badge ${a.status === 'withdrawn' ? 'b-red' : 'b-green'}">${esc(a.status)}</span><div class="kv"><span>ID ${esc(a.id)} • ${esc((a.created_at || a.ts || '').slice(0, 10))}</span></div>${a.status !== 'withdrawn' ? `<button class="btn sec" onclick="window._withdraw('${a.id}')">↩ ${hi ? 'वापस लें' : 'Withdraw'}</button>` : ''}</div>`).join('') || `<p>${hi ? 'अभी कोई आवेदन नहीं' : 'No applications yet'}</p>`}`;
 };
 window._withdraw = async (id) => { await api('/api/applications/' + id + '/withdraw', { method: 'POST' }); render(); };
+window._saveJob = async (id) => {
+  if (!S.token) { toast(S.lang === 'en' ? 'Login to save jobs' : 'सहेजने हेतु लॉगिन करें'); nav('/login'); return; }
+  const r = await api('/api/saved', { method: 'POST', body: JSON.stringify({ jobId: id }) });
+  if (r.ok) toast('♡ ' + (S.lang === 'en' ? 'Saved' : 'सहेजा गया'));
+};
 
 registerPages(Pages);
 
@@ -229,7 +236,13 @@ async function render() {
     app.innerHTML = html + `<div class="footer">🌸 SHAKTI • ${S.token ? `<a href="/profile" data-link>👩 ${esc(S.profile.name || 'Profile')}</a>` : `<a href="/login" data-link>🔑 ${t('login')}</a> • <a href="/register" data-link>📝 ${t('signup')}</a>`} • <a href="/settings" data-link>⚙️</a> • <a href="/admin" data-link>🔐</a></div>`;
     window.scrollTo(0, 0); track('page_view', path);
     if (path === '/jobs' && !document.getElementById('fq')) { /* filtered render */ }
-  } catch (e) { app.innerHTML = `<p>⚠️ Error</p><pre class="small">${esc(e.message)}</pre>`; }
+  } catch (e) {
+    app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:52px">🌸</div>
+      <h2>${S.lang === 'en' ? 'Please retry' : 'कृपया दोबारा कोशिश करें'}</h2>
+      <p>${esc(e.message || 'Error')}</p>
+      <button class="btn" onclick="location.reload()">🔄 ${S.lang === 'en' ? 'Retry' : 'पुनः कोशिश'}</button>
+      <div class="btnrow"><a class="btn sec" href="/safety" data-link>🛡️ ${t('safety')}</a><a class="btn sec" href="/help" data-link>🤖 ${t('help')}</a></div></div>`;
+    }
 }
 window.render = render;
 wireGlobal();
