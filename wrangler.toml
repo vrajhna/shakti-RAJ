@@ -8,7 +8,7 @@ directory = "./frontend/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
-# Set ONLY in dashboard (Settings → Variables → API_URL).
-# Never commit backend URLs here — dashboard value always wins.
-[vars]
-API_URL = ""
+# IMPORTANT: set API_URL in Cloudflare dashboard (Worker → Settings → Variables).
+# Do NOT define [vars] here — wrangler uploads toml vars on every deploy and
+# would overwrite/reset the dashboard value. Dashboard-only = persists forever.
+
