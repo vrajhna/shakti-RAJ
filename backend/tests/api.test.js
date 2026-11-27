@@ -46,6 +46,7 @@ test.before(async () => {
     await query(`INSERT INTO events(id,title_hi,title_en,kind,event_date,place,district,contact,demo) VALUES($1,$2,$3,$4,$5,$6,$7,$8,true) ON CONFLICT(id) DO NOTHING`,
       [ev.id, ev.title_hi, ev.title_en, ev.kind, ev.event_date, ev.place, ev.district, ev.contact]);
   }
+  await require('../src/seed-learn').seedLearn(query);
   server = makeApp().listen(PORT, '127.0.0.1');
   await new Promise(r => setTimeout(r, 300));
 });
@@ -113,6 +114,39 @@ test('saved jobs need login, work with token', async () => {
   assert.equal(s.s, 200);
   const l = await get('/api/saved', r.j.token);
   assert.ok(l.j.count >= 1);
+});
+test('learn university: catalogue, lesson flow, quiz, bookmarks, my-learning', async () => {
+  const cats = await get('/api/learn/categories');
+  assert.ok(cats.j.count >= 20);
+  const all = await get('/api/learn/courses?status=all');
+  assert.ok(all.j.count >= 20);
+  const pub = await get('/api/learn/courses');
+  assert.ok(pub.j.count >= 10);
+  const c = pub.j.courses[0];
+  const det = await get('/api/learn/courses/' + c.id);
+  assert.ok(det.j.modules.length >= 1 && det.j.lessons.length >= 3);
+  const lid = det.j.lessons[0].id;
+  const les = await get('/api/learn/lessons/' + lid);
+  assert.ok(les.j.lesson.body_hi.length > 20);
+  // guest progress denied
+  const no = await post('/api/learn/lessons/' + lid + '/complete', {});
+  assert.equal(no.s, 401);
+  const ph = '98' + String(Date.now()).slice(-8);
+  const r = await post('/api/auth/register', { name: 'Learner', phone: ph, pin: '4321' });
+  const tok = r.j.token;
+  const done = await post('/api/learn/lessons/' + lid + '/complete', {}, tok);
+  assert.equal(done.s, 200);
+  const bm = await post('/api/learn/bookmarks', { courseId: c.id }, tok);
+  assert.equal(bm.s, 200);
+  const my = await get('/api/learn/my-learning', tok);
+  assert.ok(my.j.started.length >= 1 && my.j.bookmarks.length >= 1);
+  const qz = les.j.quiz;
+  if (qz.length) {
+    const q = await post('/api/learn/quiz', { quizId: qz[0].id, answers: [0] }, tok);
+    assert.equal(q.s, 200);
+  }
+  const ev = await get('/api/schemes');
+  assert.ok(ev.j.count >= 6);
 });
 test('employer posts real job (pending) + lists own + events live', async () => {
   const ph = '98' + String(Date.now()).slice(-8);

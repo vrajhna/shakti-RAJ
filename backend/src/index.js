@@ -60,6 +60,7 @@ async function ensureSeed() {
     await query(`INSERT INTO events(id,title_hi,title_en,kind,event_date,place,district,contact,demo) VALUES($1,$2,$3,$4,$5,$6,$7,$8,true) ON CONFLICT(id) DO NOTHING`,
       [ev.id, ev.title_hi, ev.title_en, ev.kind, ev.event_date, ev.place, ev.district, ev.contact]);
   }
+  await require('./seed-learn').seedLearn(query);
   console.log('[boot] seed complete');
 }
 

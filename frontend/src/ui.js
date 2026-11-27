@@ -88,6 +88,11 @@ export const IMG = {
   kids: U('photo-1503676260728-1c00da094a0b'),
   market: U('photo-1488459716781-31db52582fe9'),
 };
+export function learnImg(c) {
+  const m = { tailoring: IMG.tailoring, food: IMG.food, beauty: IMG.beauty, kids: IMG.kids, market: IMG.market, shg: IMG.shg };
+  const k = typeof c === 'string' ? c : (c && c.img);
+  return m[k] || IMG.hero2;
+}
 export function jobImg(j) {
   const m = { tailoring: IMG.hero2, food: IMG.hero3, beauty: IMG.beauty, craft: IMG.jewel, embroidery: IMG.hero2, livestock: IMG.dairy, agri: IMG.field, digital: IMG.shg, retail: IMG.market, govt: IMG.kids };
   return m[j.category] || IMG.hero2;

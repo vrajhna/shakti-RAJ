@@ -6,8 +6,8 @@ const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const { query } = require('./db');
 const { hashPin, checkPin, signUser, signAdmin, requireUser, requireAdmin } = require('./auth');
-const { registerSchema, loginSchema, adminLoginSchema, applySchema, reportSchema, certSchema, calcSchema, employerSchema, empJobSchema, moderateSchema, feedbackSchema, validate } = require('./validate');
-const { aiEnabled, metaChat, SYSTEM, localAssist, META_MODEL } = require('./ai');
+const { registerSchema, loginSchema, adminLoginSchema, applySchema, reportSchema, certSchema, calcSchema, employerSchema, empJobSchema, quizSubmitSchema, reviewSchema, learnCourseSchema, learnLessonSchema, moderateSchema, feedbackSchema, validate } = require('./validate');
+const { aiEnabled, metaChat, metaChatStream, SYSTEM, localAssist, META_MODEL } = require('./ai');
 const { hunarSchema, interestSchema } = require('./validateHunar');
 
 function makeApp() {
@@ -313,6 +313,140 @@ function makeApp() {
     res.json({ count: r.rowCount, events: r.rows });
   });
 
+  /* ---------- LEARN UNIVERSITY ---------- */
+  app.get('/api/learn/categories', async (req, res) => {
+    const r = await query(`SELECT * FROM learn_categories ORDER BY sort`);
+    res.json({ count: r.rowCount, categories: r.rows });
+  });
+  app.get('/api/learn/courses', async (req, res) => {
+    const cat = req.query.cat || '', q = (req.query.q || '').toLowerCase(), st = req.query.status || 'published';
+    const conds = []; const p = [];
+    if (st !== 'all') { p.push(st); conds.push(`c.status=$${p.length}`); }
+    if (cat) { p.push(cat); conds.push(`c.cat_id=$${p.length}`); }
+    if (q) { p.push(`%${q}%`); conds.push(`(LOWER(c.title_hi||' '||c.title_en||' '||c.desc_hi) LIKE $${p.length})`); }
+    const r = await query(`SELECT c.*, k.title_hi AS cat_hi, k.title_en AS cat_en, (SELECT COUNT(*) FROM learn_lessons l WHERE l.course_id=c.id) AS lessons FROM learn_courses c LEFT JOIN learn_categories k ON k.id=c.cat_id ${conds.length ? 'WHERE ' + conds.join(' AND ') : ''} ORDER BY c.created_at`, p);
+    res.json({ count: r.rowCount, courses: r.rows, note: 'All courses free forever. Planned = content pending review.' });
+  });
+  app.get('/api/learn/courses/:id', async (req, res) => {
+    const t = me(req);
+    const c = await query(`SELECT c.*, k.title_hi AS cat_hi FROM learn_courses c LEFT JOIN learn_categories k ON k.id=c.cat_id WHERE c.id=$1`, [req.params.id]);
+    if (!c.rows[0]) return res.status(404).json({ error: 'not found' });
+    if (c.rows[0].status !== 'published' && !(t && String(t.role).startsWith('admin'))) return res.status(404).json({ error: 'not found' });
+    const mods = await query(`SELECT * FROM learn_modules WHERE course_id=$1 ORDER BY pos`, [req.params.id]);
+    const lessons = await query(`SELECT l.id,l.module_id,l.pos,l.title_hi,l.title_en,l.mins,(SELECT COUNT(*) FROM learn_quizzes q WHERE q.lesson_id=l.id) AS quiz_n FROM learn_lessons l WHERE l.course_id=$1 ORDER BY l.pos`, [req.params.id]);
+    let done = [];
+    if (t && t.role === 'user') { const pr = await query(`SELECT lesson_id FROM learn_progress WHERE user_id=$1 AND course_id=$2 AND done=true`, [t.sub, req.params.id]); done = pr.rows.map(x => x.lesson_id); }
+    const rel = c.rows[0].related_jobs ? await query(`SELECT id,title_hi,pay_hi,district FROM jobs WHERE status='published' AND verified=true AND (LOWER(title_hi||' '||title_en||' '||category) LIKE $1) LIMIT 4`, ['%' + c.rows[0].related_jobs.split(' ')[0] + '%']).catch(() => ({ rows: [] })) : { rows: [] };
+    res.json({ course: c.rows[0], modules: mods.rows, lessons: lessons.rows, done, relatedJobs: rel.rows });
+  });
+  app.get('/api/learn/lessons/:id', async (req, res) => {
+    const t = me(req);
+    const l = await query(`SELECT l.*, c.title_hi AS course_hi, c.status FROM learn_lessons l JOIN learn_courses c ON c.id=l.course_id WHERE l.id=$1`, [req.params.id]);
+    if (!l.rows[0]) return res.status(404).json({ error: 'not found' });
+    if (l.rows[0].status !== 'published' && !(t && String(t.role).startsWith('admin'))) return res.status(404).json({ error: 'not found' });
+    const qz = await query(`SELECT id,question_hi,question_en,options_hi,options_en,explain_hi,explain_en FROM learn_quizzes WHERE lesson_id=$1`, [req.params.id]);
+    const all = await query(`SELECT id,title_hi FROM learn_lessons WHERE course_id=$1 ORDER BY pos`, [l.rows[0].course_id]);
+    const ids = all.rows.map(x => x.id); const ix = ids.indexOf(req.params.id);
+    res.json({ lesson: l.rows[0], quiz: qz.rows, prev: ids[ix - 1] || null, next: ids[ix + 1] || null });
+  });
+  app.post('/api/learn/lessons/:id/complete', requireUser, async (req, res) => {
+    const l = await query(`SELECT course_id FROM learn_lessons WHERE id=$1`, [req.params.id]);
+    if (!l.rows[0]) return res.status(404).json({ error: 'not found' });
+    await query(`INSERT INTO learn_progress(user_id,lesson_id,course_id,done) VALUES($1,$2,$3,true) ON CONFLICT(user_id,lesson_id) DO UPDATE SET done=true, updated_at=now()`, [req.auth.sub, req.params.id, l.rows[0].course_id]);
+    const c = await query(`SELECT (SELECT COUNT(*) FROM learn_lessons WHERE course_id=$2) total, (SELECT COUNT(*) FROM learn_progress WHERE user_id=$1 AND course_id=$2 AND done=true) done`, [req.auth.sub, l.rows[0].course_id]);
+    const badge = Number(c.rows[0].done) >= Number(c.rows[0].total) && Number(c.rows[0].total) > 0;
+    audit(req.auth.sub, 'learn_complete', req.params.id);
+    track('lesson_complete', '/learn', 'hi', '', req.auth.sub);
+    res.json({ ok: true, done: Number(c.rows[0].done), total: Number(c.rows[0].total), badge, message_hi: badge ? 'बधाई! कोर्स पूरा — यह सीखने का प्रमाण है।' : 'शाबाश! आगे बढ़ें।' });
+  });
+  app.post('/api/learn/quiz', requireUser, async (req, res) => {
+    const v = quizSubmitSchema.safeParse(req.body);
+    if (!v.success) return res.status(400).json({ error: 'invalid input' });
+    const qz = await query(`SELECT answer,lesson_id,course_id FROM learn_quizzes WHERE id=$1`, [String(req.body.quizId || '')]);
+    // support per-question check via quiz id OR lesson-level answers
+    let score = null, total = null;
+    if (qz.rows[0]) {
+      const qa = await query(`SELECT id,answer FROM learn_quizzes WHERE lesson_id=$1 ORDER BY id`, [qz.rows[0].lesson_id]);
+      total = qa.rows.length;
+      score = qa.rows.filter((q, i) => Number((v.data.answers || [])[i]) === Number(q.answer)).length;
+      await query(`UPDATE learn_progress SET quiz_score=$3 WHERE user_id=$1 AND lesson_id=$2`, [req.auth.sub, qz.rows[0].lesson_id, score]).catch(() => {});
+    }
+    res.json({ ok: true, score, total });
+  });
+  app.get('/api/learn/my-learning', requireUser, async (req, res) => {
+    const r = await query(`SELECT c.id,c.title_hi,c.img,(SELECT COUNT(*) FROM learn_lessons l WHERE l.course_id=c.id) total, COUNT(p.lesson_id) FILTER (WHERE p.done) done, MAX(p.updated_at) last FROM learn_courses c JOIN learn_progress p ON p.course_id=c.id WHERE p.user_id=$1 GROUP BY c.id ORDER BY last DESC`, [req.auth.sub]);
+    const bm = await query(`SELECT c.id,c.title_hi,c.img FROM learn_bookmarks b JOIN learn_courses c ON c.id=b.course_id WHERE b.user_id=$1 ORDER BY b.created_at DESC LIMIT 20`, [req.auth.sub]);
+    const done = r.rows.filter(x => Number(x.total) > 0 && Number(x.done) >= Number(x.total));
+    res.json({ started: r.rows, completed: done, bookmarks: bm.rows });
+  });
+  app.post('/api/learn/bookmarks', requireUser, async (req, res) => {
+    const cid = String(req.body.courseId || '');
+    if (!cid) return res.status(400).json({ error: 'courseId required' });
+    await query(`INSERT INTO learn_bookmarks(user_id,course_id) VALUES($1,$2) ON CONFLICT DO NOTHING`, [req.auth.sub, cid]);
+    res.json({ ok: true });
+  });
+  app.post('/api/learn/reviews', requireUser, async (req, res) => {
+    const v = reviewSchema.safeParse(req.body);
+    if (!v.success) return res.status(400).json({ error: 'invalid input' });
+    const id = 'rv' + Date.now().toString(36);
+    await query(`INSERT INTO learn_reviews(id,course_id,user_id,rating,message) VALUES($1,$2,$3,$4,$5)`, [id, v.data.courseId, req.auth.sub, v.data.rating, v.data.message]);
+    res.json({ ok: true });
+  });
+  app.get('/api/learn/reviews', async (req, res) => {
+    const cid = String(req.query.courseId || '');
+    const r = await query(`SELECT rating,message,created_at FROM learn_reviews WHERE course_id=$1 ORDER BY created_at DESC LIMIT 20`, [cid]);
+    res.json({ count: r.rowCount, reviews: r.rows });
+  });
+  // --- admin CMS ---
+  app.post('/api/admin/learn/course', requireAdmin(['super_admin', 'moderator', 'verifier', 'content_editor']), validate(learnCourseSchema), async (req, res) => {
+    const id = 'lc-' + Date.now().toString(36);
+    await query(`INSERT INTO learn_courses(id,cat_id,title_hi,title_en,desc_hi,level,dur,img,skills,related_jobs,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft')`,
+      [id, req.valid.cat_id, req.valid.title_hi, req.valid.title_en, req.valid.desc_hi, req.valid.level, req.valid.dur, req.valid.img, req.valid.skills, req.valid.related_jobs]);
+    audit(req.auth.sub, 'learn_course_create', id);
+    res.json({ ok: true, course: { id } });
+  });
+  app.post('/api/admin/learn/lesson', requireAdmin(['super_admin', 'moderator', 'verifier', 'content_editor']), validate(learnLessonSchema), async (req, res) => {
+    const v = req.valid;
+    let mid = v.moduleId, cid = v.courseId;
+    if (!mid && cid) {
+      mid = cid + '-m9';
+      await query(`INSERT INTO learn_modules(id,course_id,pos,title_hi,title_en) VALUES($1,$2,99,$3,$4) ON CONFLICT(id) DO NOTHING`, [mid, cid, v.module_th || 'अतिरिक्त', v.module_te || 'Extra']);
+    }
+    if (!mid) return res.status(400).json({ error: 'courseId or moduleId required' });
+    const mc = await query(`SELECT course_id FROM learn_modules WHERE id=$1`, [mid]);
+    cid = v.courseId || (mc.rows[0] && mc.rows[0].course_id);
+    const id = mid + '-l' + Date.now().toString(36);
+    const n = await query(`SELECT COUNT(*) n FROM learn_lessons WHERE module_id=$1`, [mid]);
+    await query(`INSERT INTO learn_lessons(id,module_id,course_id,pos,title_hi,title_en,body_hi,body_en,steps_hi,practice_hi) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [id, mid, cid, Number(n.rows[0].n) + 1, v.title_hi, v.title_en, v.body_hi, v.body_en, v.steps_hi, v.practice_hi]);
+    if (v.qh) await query(`INSERT INTO learn_quizzes(id,lesson_id,course_id,question_hi,question_en,options_hi,answer) VALUES($1,$2,$3,$4,$4,$5,$6)`, [id + '-q', id, cid, v.qh, v.qh, v.options, v.answer]);
+    audit(req.auth.sub, 'learn_lesson_create', id);
+    res.json({ ok: true, lesson: { id } });
+  });
+  app.post('/api/admin/learn/publish', requireAdmin(['super_admin', 'moderator', 'verifier']), async (req, res) => {
+    const { id, status } = req.body || {};
+    if (!['draft', 'review', 'approved', 'published'].includes(status)) return res.status(400).json({ error: 'bad status' });
+    const r = await query(`UPDATE learn_courses SET status=$2, updated_at=now() WHERE id=$1 RETURNING *`, [id, status]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'not found' });
+    audit(req.auth.sub, 'learn_publish', id + '=' + status);
+    res.json({ ok: true, course: r.rows[0] });
+  });
+  app.get('/api/learn/analytics', requireAdmin(), async (req, res) => {
+    const c = await query(`SELECT (SELECT COUNT(*) FROM learn_courses WHERE status='published') published, (SELECT COUNT(*) FROM learn_courses WHERE status<>'published') drafts, (SELECT COUNT(*) FROM learn_lessons) lessons, (SELECT COUNT(*) FROM learn_progress WHERE done=true) completions, (SELECT COUNT(DISTINCT user_id) FROM learn_progress) learners, (SELECT COUNT(*) FROM learn_bookmarks) bookmarks`);
+    const pop = await query(`SELECT c.id,c.title_hi,COUNT(p.lesson_id) n FROM learn_courses c LEFT JOIN learn_progress p ON p.course_id=c.id GROUP BY c.id ORDER BY n DESC LIMIT 12`);
+    const drop = await query(`SELECT l.id,l.title_hi,COUNT(p.lesson_id) n FROM learn_lessons l LEFT JOIN learn_progress p ON p.lesson_id=l.id AND p.done GROUP BY l.id ORDER BY n ASC LIMIT 12`);
+    const lang = await query(`SELECT lang,COUNT(*) n FROM analytics_events WHERE event IN ('lesson_complete','learn_search') GROUP BY 1 ORDER BY 2 DESC`);
+    res.json({ counts: c.rows[0], popular: pop.rows, dropoff: drop.rows, byLang: lang.rows });
+  });
+
+  /* ---------- schemes ---------- */
+  app.get('/api/schemes', async (req, res) => {
+    const q = (req.query.q || '').toLowerCase();
+    const r = await query(`SELECT * FROM govt_schemes ORDER BY id`);
+    const list = q ? r.rows.filter(s => (s.title_hi + ' ' + s.title_en + ' ' + s.dept).toLowerCase().includes(q)) : r.rows;
+    res.json({ count: list.length, schemes: list, note: 'सूचना हेतु — पात्रता CSC/बैंक से सत्यापित करें। / Info only — verify eligibility at CSC/bank.' });
+  });
+
   /* ---------- employers ---------- */
   app.get('/api/employers', async (req, res) => {
     const r = await query(`SELECT * FROM employers WHERE status='approved' ORDER BY created_at DESC`);
@@ -387,6 +521,36 @@ function makeApp() {
       }
     }
     res.json({ answer: lang === 'en' ? local.reply_en : local.reply_hi, engine: 'local-kb (no AI key)', jobs: local.jobs });
+  });
+
+  /* ---------- streaming AI (SSE, duck.ai-style fast first token) ---------- */
+  app.post('/api/ai-help/stream', async (req, res) => {
+    const msg = String(req.body.message || '').slice(0, 800);
+    if (!msg) return res.status(400).json({ error: 'message required' });
+    const lang = req.body.lang === 'en' ? 'en' : 'hi';
+    res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'Access-Control-Allow-Origin': '*', 'X-Accel-Buffering': 'no' });
+    const say = (o) => { try { res.write('data: ' + JSON.stringify(o) + '\n\n'); } catch {} };
+    const t0 = Date.now();
+    const jobs = (await query(`SELECT * FROM jobs WHERE status='published' LIMIT 100`).catch(() => ({ rows: [] }))).rows;
+    const local = localAssist(msg, jobs);
+    const t = me(req);
+    if (aiEnabled()) {
+      const ctx = local.jobs.map(j => `${j.title_hi} (${j.district}, ${j.pay_hi}, verified:${j.verified})`).join('; ');
+      let first = true;
+      const full = await metaChatStream([
+        { role: 'system', content: SYSTEM },
+        { role: 'user', content: `Question: ${msg}\nVerified context (use only this, never invent): ${ctx || 'none'}` },
+      ], 700, (tok) => { say({ token: tok, firstTokenMs: first ? Date.now() - t0 : undefined }); first = false; });
+      if (full) {
+        track('ai_help', '/help', lang, '', t ? t.sub : null);
+        say({ done: true, ms: Date.now() - t0, engine: 'meta:' + META_MODEL, jobs: local.jobs.slice(0, 3) });
+        try { res.end(); } catch {}
+        return;
+      }
+    }
+    say({ token: lang === 'en' ? local.reply_en : local.reply_hi, firstTokenMs: Date.now() - t0 });
+    say({ done: true, ms: Date.now() - t0, engine: 'local-kb (no AI key)', jobs: local.jobs.slice(0, 3) });
+    try { res.end(); } catch {}
   });
 
   /* ---------- feedback / analytics ---------- */

@@ -62,4 +62,39 @@ function localAssist(text, jobs) {
   };
 }
 
-module.exports = { aiEnabled, metaChat, SYSTEM, localAssist, META_MODEL };
+async function metaChatStream(messages, maxTokens = 800, onToken) {
+  for (const base of [...new Set(META_URLS)]) {
+    for (const extra of [{ reasoning_effort: 'low' }, {}]) {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 45000);
+      try {
+        const r = await fetch(base, {
+          method: 'POST', signal: ctrl.signal,
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + META_KEY() },
+          body: JSON.stringify({ model: META_MODEL, messages, max_completion_tokens: maxTokens || 800, stream: true, ...extra }),
+        });
+        if (!r.ok || !r.body) { clearTimeout(to); console.error('[ai] meta stream http', r.status, base); continue; }
+        let buf = '', full = '';
+        for await (const chunk of r.body) {
+          buf += Buffer.from(chunk).toString('utf8');
+          const parts = buf.split('\n\n'); buf = parts.pop();
+          for (const part of parts) {
+            const line = part.split('\n').map(l => l.trim()).find(l => l.startsWith('data:'));
+            if (!line) continue;
+            const data = line.slice(5).trim();
+            if (!data || data === '[DONE]') continue;
+            try {
+              const tok = JSON.parse(data).choices?.[0]?.delta?.content;
+              if (tok) { full += tok; onToken(tok); }
+            } catch {}
+          }
+        }
+        clearTimeout(to);
+        if (full) { if (base !== META_URL) console.log('[ai] working base:', base); return full; }
+      } catch (e) { clearTimeout(to); console.error('[ai] meta stream error', String(e.message || e).slice(0, 80), base); }
+    }
+  }
+  return null;
+}
+
+module.exports = { aiEnabled, metaChat, metaChatStream, SYSTEM, localAssist, META_MODEL };

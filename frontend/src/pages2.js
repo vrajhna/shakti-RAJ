@@ -1,5 +1,5 @@
 import { t } from './i18n.js';
-import { S, saveProfile, toast, esc, api, track, speak, listenInto, IMG, jobImg, vBadge, jobCard, hunarCard, slideshow } from './ui.js';
+import { S, saveProfile, toast, esc, api, A, track, speak, listenInto, IMG, jobImg, vBadge, jobCard, hunarCard, slideshow, learnImg } from './ui.js';
 
 export function registerPages(Pages) {
   const hi = () => S.lang !== 'en';
@@ -22,7 +22,137 @@ export function registerPages(Pages) {
     <div class="card"><b>🏢 ${H ? 'कंपनी हैं? सीधे जुड़ें' : 'A company? Join directly'}</b><p>${H ? 'सत्यापन के बाद आपकी भर्तियां यहां दिखेंगी।' : 'Your openings appear here after verification.'}</p><a class="btn warn" href="/employer" data-link>📝 ${t('employer')}</a></div>`;
   };
 
-  /* ----- home-work ----- */
+  /* ----- LEARN UNIVERSITY ----- */
+  Pages['route:learn'] = async () => {
+    const path = location.pathname, seg = path.split('/').filter(Boolean);
+    if (seg[1] === 'course' && seg[3] === 'lesson') return Pages.learnLesson(seg[2], seg[4]);
+    if (seg[1] === 'course' && seg[2]) return Pages.learnCourse(seg[2]);
+    if (seg[1] === 'my-learning') return Pages.learnMine();
+    if (seg[1] === 'bookmarks') return Pages.learnMine(true);
+    return Pages.learnHome(new URLSearchParams(location.search));
+  };
+  Pages.learnHome = async (qs) => {
+    const H = hi();
+    const [cats, courses] = await Promise.all([
+      api('/api/learn/categories').catch(() => ({ categories: [] })),
+      api('/api/learn/courses?' + new URLSearchParams({ cat: qs.get('cat') || '', q: qs.get('q') || '' }).toString()).catch(() => ({ courses: [], count: 0 })),
+    ]);
+    const cat = qs.get('cat') || '';
+    return `<h2>🎓 ${t('learn_title')}</h2><p>${t('learn_sub')}</p>
+    <div class="searchbar"><input id="lq" value="${esc(qs.get('q') || '')}" placeholder="${t('search_course')}"><button onclick="window._learnSearch()">🔍</button>
+    <button onclick="listenInto(document.getElementById('lq'))" title="voice">🎤</button></div>
+    <div class="chips"><button class="chip ${!cat ? 'on' : ''}" onclick="location.href='/learn'">${t('all_categories')}</button>${(cats.categories || []).map(c => `<button class="chip ${cat === c.id ? 'on' : ''}" onclick="location.href='/learn?cat=${c.id}'">${c.icon} ${esc(H ? c.title_hi : c.title_en)}</button>`).join('')}</div>
+    <div class="btnrow"><a class="btn sec" href="/learn/my-learning" data-link>📊 ${t('my_learning')}</a><a class="btn sec" href="/skills" data-link>📚 ${H ? 'पुराना स्किल सेक्शन' : 'Old skills'} ➜</a></div>
+    <h3>${H ? 'शुरुआत हेतु 12 पूर्ण कोर्स' : '12 complete starter courses'} <span class="badge b-green">FREE</span></h3>
+    <div class="photogrid">${(courses.courses || []).filter(c => c.status === 'published').map(c => `
+      <a class="photocard" href="/learn/course/${c.id}" data-link><img class="ph" loading="lazy" decoding="async" src="${learnImg(c)}" onerror="this.style.display='none'">
+      <span class="lbl">📖 ${esc(H ? c.title_hi : c.title_en)}<small>${c.lessons || ''} ${t('lessons_n')} • ${esc(c.dur || '')}</small></span></a>`).join('') || `<p>${t('learn_empty')}</p>`}</div>
+    ${(courses.courses || []).some(c => c.status === 'planned') ? `<h3>${H ? 'जल्द आने वाले' : 'Coming soon'}</h3><p>${(courses.courses || []).filter(c => c.status === 'planned').map(c => `<span class="skilltag">${esc(H ? c.title_hi : c.title_en)}</span>`).join('')}</p>` : ''}
+    <div class="card"><b>🛡️ ${H ? 'हमेशा मुफ्त' : 'Always free'}</b><p class="small">${H ? 'कोई फीस, कोई प्रीमियम, कोई लॉक नहीं। प्रमाणपत्र सीखने का प्रमाण है।' : 'No fees, no premium, no locks. Certificates are learning proof.'}</p></div>`;
+  };
+  window._learnSearch = () => { const q = document.getElementById('lq').value; location.href = '/learn' + (q ? '?q=' + encodeURIComponent(q) : ''); };
+  Pages.learnCourse = async (id) => {
+    const H = hi();
+    const d = await api('/api/learn/courses/' + id);
+    if (!d.course) return '<p>Not found</p>';
+    const c = d.course, done = d.done || [];
+    const pct = d.lessons.length ? Math.round(done.length / d.lessons.length * 100) : 0;
+    const byMod = {};
+    (d.modules || []).forEach(m => byMod[m.id] = { ...m, ls: [] });
+    (d.lessons || []).forEach(l => { (byMod[l.module_id] || (byMod[l.module_id] = { title_hi: '', title_en: '', ls: [] })).ls.push(l); });
+    return `<a href="/learn" data-link>← ${t('back')}</a><div class="card"><div class="topimg">${c.img ? '' : '📖'}</div>
+    <img class="imgcover ph" src="${learnImg(c)}" onerror="this.style.display='none'">
+    <h2>${esc(H ? c.title_hi : c.title_en)}</h2>
+    <div><span class="badge b-green">FREE</span> <span class="badge b-blue">${esc(c.level || '')}</span> <span class="badge b-grey">${esc(c.translation_status || '')}</span> <span class="badge b-grey">📝 ${esc(c.review_status || c.status || '')}</span></div>
+    <p>${esc(H ? c.desc_hi : c.desc_en)}</p>
+    <div class="kv"><span>${t('progress_tag')}</span><b>${pct}% (${done.length}/${d.lessons.length})</b></div>
+    <div style="background:#eee;border-radius:8px;height:10px"><div style="background:var(--green);height:10px;border-radius:8px;width:${pct}%"></div></div>
+    <div style="margin:8px 0">${(c.skills || []).map(s => `<span class="skilltag">✅ ${esc(s)}</span>`).join('')}</div>
+    <div class="btnrow"><button class="btn yel" data-speak="${esc(H ? c.title_hi + '. ' + c.desc_hi : c.title_en + '. ' + c.desc_en).slice(0, 300)}">🔊 ${t('listen_l')}</button>
+    ${S.token ? `<button class="btn sec" onclick="window._bmCourse('${c.id}')">♡ ${t('bookmarks_l')}</button>` : `<a class="btn sec" href="/login" data-link>🔑 ${t('login')}</a>`}</div></div>
+    ${Object.values(byMod).map(m => `<div class="card"><h3>📦 ${esc(H ? (m.title_hi || c.title_hi) : (m.title_en || c.title_en))}</h3>${(m.ls || []).map((l, i) => `<div class="kv"><span>${done.includes(l.id) ? '✅' : '⭕'} <a href="/learn/course/${c.id}/lesson/${l.id}" data-link>${esc(H ? l.title_hi : l.title_en)}</a> <small>• ${l.mins || 5} ${t('min_n')}</small></span><span>${l.quiz_n > 0 ? '❓' : ''}</span></div>`).join('')}</div>`).join('')}
+    ${(d.relatedJobs || []).length ? `<div class="card"><h3>💼 ${t('related_jobs')}</h3>${d.relatedJobs.map(j => `<div class="kv"><span>• ${esc(j.title_hi)} — ${esc(j.pay_hi)} (${esc(j.district)})</span><a href="/jobs/${j.id}" data-link>${t('view')} ➜</a></div>`).join('')}</div>` : ''}
+    <div class="card"><b>💬 ${H ? 'समीक्षा' : 'Reviews'}</b><div id="revList">…</div><div class="chatrow"><input id="rvMsg" placeholder="${H ? 'क्या सीखा?' : 'What did you learn?'}"><button class="btn sec" onclick="window._doReview('${c.id}')">📩</button></div></div>`;
+  };
+  window._bmCourse = async (id) => { if (!S.token) { location.href = '/login'; return; } await api('/api/learn/bookmarks', { method: 'POST', body: JSON.stringify({ courseId: id }) }); toast('♡'); };
+  window._doReview = async (id) => {
+    if (!S.token) { location.href = '/login'; return; }
+    await api('/api/learn/reviews', { method: 'POST', body: JSON.stringify({ courseId: id, rating: 5, message: document.getElementById('rvMsg').value }) });
+    toast('✅'); document.getElementById('rvMsg').value = '';
+  };
+  Pages.learnLesson = async (cid, lid) => {
+    const H = hi();
+    const d = await api('/api/learn/lessons/' + lid);
+    if (!d.lesson) return '<p>Not found</p>';
+    const l = d.lesson, qz = d.quiz || [];
+    window._QZ = qz; window._QH = hi();
+    return `<a href="/learn/course/${cid}" data-link>← ${t('back')}</a><div class="card">
+    <h2>${esc(H ? l.title_hi : l.title_en)}</h2>
+    <div class="btnrow"><button class="btn yel" data-speak="${esc(H ? l.title_hi + '. ' + l.body_hi : l.title_en + '. ' + (l.body_en || '')).slice(0, 400)}">🔊 ${t('listen_l')}</button></div>
+    <p style="font-size:19px">${esc(H ? l.body_hi : (l.body_en || l.body_hi))}</p>
+    ${(l.steps_hi || []).length ? `<h3>👣 ${H ? 'चरण' : 'Steps'}</h3><div>${(H ? l.steps_hi : (l.steps_en && l.steps_en.length ? l.steps_en : l.steps_hi)).map((s, i) => `<div class="step"><b>${i + 1}.</b> ${esc(s)}</div>`).join('')}</div>` : ''}
+    ${l.practice_hi ? `<div class="safebox">✋ <b>${t('practice_l')}:</b> ${esc(H ? l.practice_hi : (l.practice_en || l.practice_hi))}</div>` : ''}
+    <div id="quizBox">${qz.length ? `<h3>❓ Quiz (${qz.length})</h3><div id="qBody"></div>` : ''}</div>
+    <div class="btnrow">
+      ${d.prev ? `<a class="btn sec" href="/learn/course/${cid}/lesson/${d.prev}" data-link>← ${t('prev_lesson')}</a>` : ''}
+      ${S.token ? `<button class="btn" onclick="window._completeLesson('${l.id}')">✅ ${t('mark_done')}</button>` : `<a class="btn sec" href="/login" data-link>🔑 ${t('login')}</a>`}
+      ${d.next ? `<a class="btn sec" href="/learn/course/${cid}/lesson/${d.next}" data-link>${t('next_lesson')} →</a>` : ''}
+    </div><div id="doneOut"></div></div>`;
+  };
+  window._quizState = { i: 0, answers: [] };
+  window._startQuiz = () => {
+    const qz = window._QZ || [], H = window._QH;
+    const box = document.getElementById('qBody'); if (!box || !qz.length) return;
+    window._quizState = { i: 0, answers: [] };
+    const show = () => {
+      const st = window._quizState, q = qz[st.i];
+      const opts = (H ? q.options_hi : (q.options_en && q.options_en.length ? q.options_en : q.options_hi)) || [];
+      box.innerHTML = `<p><b>${t('quiz_of')} ${st.i + 1}/${qz.length}:</b> ${esc(H ? q.question_hi : (q.question_en || q.question_hi))}</p>
+      ${opts.map((o, k) => `<button class="btn sec" style="width:100%;text-align:left" onclick="window._answerQuiz(${k})">${esc(o)}</button>`).join('')}<div id="qFb"></div>`;
+    };
+    show();
+    window._answerQuiz = async (k) => {
+      const st = window._quizState, q = qz[st.i];
+      st.answers[st.i] = k;
+      const ok = Number(k) === Number(q.answer);
+      document.getElementById('qFb').innerHTML = `<div class="${ok ? 'safebox' : 'warnbox'}">${ok ? t('correct_msg') : t('wrong_msg')}${q.explain_hi ? '<br><small>' + esc(H ? q.explain_hi : (q.explain_en || q.explain_hi)) + '</small>' : ''}</div>
+      ${st.i + 1 < qz.length ? `<button class="btn" onclick="window._nextQuiz()">${t('next_lesson')} →</button>` : `<button class="btn" onclick="window._finishQuiz()">${t('quiz_check')} ✓</button>`}`;
+    };
+    window._nextQuiz = () => { window._quizState.i++; show(); const b = document.getElementById('qBody'); };
+    window._finishQuiz = async () => {
+      const st = window._quizState;
+      if (S.token) {
+        const r = await api('/api/learn/quiz', { method: 'POST', body: JSON.stringify({ quizId: qz[0].id, answers: st.answers }) }).catch(() => null);
+        if (r && r.ok) document.getElementById('qFb').innerHTML += `<div class="safebox">📊 ${r.score}/${r.total}</div>`;
+      } else {
+        const score = qz.filter((q, i) => Number(st.answers[i]) === Number(q.answer)).length;
+        document.getElementById('qFb').innerHTML += `<div class="safebox">📊 ${score}/${qz.length} — <a href="/login" data-link>${t('login')}</a></div>`;
+      }
+    };
+  };
+  window._completeLesson = async (lid) => {
+    const r = await api('/api/learn/lessons/' + lid + '/complete', { method: 'POST', body: JSON.stringify({}) });
+    if (r.ok) { document.getElementById('doneOut').innerHTML = `<div class="safebox">🎉 ${esc(hi() ? r.message_hi : 'Done!')} (${r.done}/${r.total})</div>`; speak(hi() ? r.message_hi : 'Done'); }
+  };
+  Pages.learnMine = async (onlyBm) => {
+    const H = hi();
+    if (!S.token) return `<div class="card"><h2>📊 ${t('my_learning')}</h2><p>${t('login_to_learn')}</p><a class="btn" href="/login" data-link>🔑 ${t('login')}</a></div>`;
+    const d = await api('/api/learn/my-learning');
+    const bar = (a, b) => { const p = b ? Math.round(a / b * 100) : 0; return `<div style="background:#eee;border-radius:8px;height:10px"><div style="background:var(--green);height:10px;border-radius:8px;width:${p}%"></div></div>`; };
+    return `<h2>📊 ${t('my_learning')}</h2>
+    ${(d.started || []).map(c => `<div class="card"><b>${esc(c.title_hi)}</b><div class="kv"><span>${H ? 'प्रगति' : 'Progress'}</span><b>${c.done}/${c.total}</b></div>${bar(Number(c.done), Number(c.total))}<a class="btn sec" href="/learn/course/${c.id}" data-link>${t('continue_l')} ➜</a></div>`).join('') || `<p>${t('learn_empty')}</p>`}
+    <h3>🎓 ${H ? 'पूर्ण' : 'Completed'} (${(d.completed || []).length})</h3>
+    <h3>♡ ${t('bookmarks_l')} (${(d.bookmarks || []).length})</h3>
+    ${(d.bookmarks || []).map(c => `<div class="kv"><span>♡ <a href="/learn/course/${c.id}" data-link>${esc(c.title_hi)}</a></span></div>`).join('') || `<p>${t('bookmarks_empty')}</p>`}`;
+  };
+  Pages['route:schemes'] = async () => {
+    const H = hi();
+    const d = await api('/api/schemes');
+    return `<h2>🏛️ ${t('schemes_title')}</h2><p class="small">📢 ${t('schemes_note')}</p>
+    ${(d.schemes || []).map(s => `<div class="card"><b>${esc(H ? s.title_hi : s.title_en)}</b> <span class="badge b-blue">${esc(s.dept)}</span>
+    <p>💰 ${esc(H ? s.benefit_hi : s.benefit_en)}</p><div class="kv"><span>👩 ${esc(H ? s.who_hi : s.who_en)}</span></div>
+    <a class="btn sec" href="${esc(s.portal)}" target="_blank" rel="noopener">🌐 ${H ? 'आधिकारिक पोर्टल' : 'Official portal'} ↗</a></div>`).join('')}`;
+  };
   Pages['route:home-work'] = async () => {
     const d = await api('/api/jobs?home=true&verifiedOnly=false');
     const list = (d.jobs || []).filter(j => j.home_based && j.status === 'published');
@@ -212,12 +342,35 @@ export function registerPages(Pages) {
     const q = document.getElementById('hq').value; if (!q.trim()) return;
     const box = document.getElementById('chatbox');
     box.innerHTML += `<div class="msg u">${esc(q)}</div>`; document.getElementById('hq').value = '';
-    box.innerHTML += `<div class="msg b" id="thinking">💭 …</div>`; box.scrollTop = box.scrollHeight;
-    const r = await api('/api/ai-help', { method: 'POST', body: JSON.stringify({ message: q, lang: S.lang }) });
-    document.getElementById('thinking')?.remove();
-    box.innerHTML += `<div class="msg b">💬 ${esc(r.answer)}<small>engine: ${esc(r.engine || '')}</small></div>`;
-    if (r.jobs?.length) box.innerHTML += r.jobs.map(jobCard).join('');
-    box.scrollTop = box.scrollHeight; speak(String(r.answer).slice(0, 280));
+    const bid = 'b' + Date.now();
+    box.innerHTML += `<div class="msg b" id="${bid}">💭 …</div>`; box.scrollTop = box.scrollHeight;
+    const t0 = Date.now();
+    try {
+      const r = await fetch(A('/api/ai-help/stream'), { method: 'POST', headers: { 'Content-Type': 'application/json', ...(S.token ? { Authorization: 'Bearer ' + S.token } : {}) }, body: JSON.stringify({ message: q, lang: S.lang }) });
+      if (!r.ok || !r.body) throw new Error('stream');
+      const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '', txt = '', eng = '', jobs = [];
+      const el = () => document.getElementById(bid);
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split('\n\n'); buf = parts.pop();
+        for (const part of parts) {
+          const line = part.split('\n').map(l => l.trim()).find(l => l.startsWith('data:'));
+          if (!line) continue;
+          try {
+            const d = JSON.parse(line.slice(5).trim());
+            if (d.token) { txt += d.token; if (el()) el().innerHTML = '💬 ' + esc(txt); box.scrollTop = box.scrollHeight; }
+            if (d.done) { eng = d.engine || ''; jobs = d.jobs || []; }
+          } catch { }
+        }
+      }
+      if (el()) el().innerHTML = '💬 ' + esc(txt) + `<small>engine: ${esc(eng)} • ${((Date.now() - t0) / 1000).toFixed(1)}s</small>`;
+      if (jobs.length) box.innerHTML += jobs.map(jobCard).join('');
+      box.scrollTop = box.scrollHeight; speak(txt.slice(0, 280));
+    } catch {
+      if (document.getElementById(bid)) document.getElementById(bid).innerHTML = '⚠️ ' + (S.lang === 'en' ? 'Connection issue — retry.' : 'संपर्क टूटा — दोबारा पूछें।');
+    }
   };
   window._doFeedback = async () => {
     const r = await api('/api/feedback', { method: 'POST', body: JSON.stringify({ message: document.getElementById('fb').value }) });

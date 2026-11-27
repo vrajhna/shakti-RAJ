@@ -1,6 +1,6 @@
 import { LANGS, t, getLang, setLang } from './i18n.js';
 import './styles.css';
-import { S, saveProfile, toast, esc, api, track, speak, listenInto, IMG, jobImg, vBadge, jobCard, hunarCard, slideshow, wireGlobal, setNav } from './ui.js';
+import { S, saveProfile, toast, esc, api, track, speak, listenInto, IMG, jobImg, vBadge, jobCard, hunarCard, slideshow, learnImg, wireGlobal, setNav } from './ui.js';
 import { registerPages } from './pages2.js';
 
 const Pages = {};
@@ -12,8 +12,8 @@ function shell() {
   document.getElementById('tagline').textContent = t('tagline');
   const L = (p, ic, k) => `<a href="${p}" data-link>${ic} <span>${t(k)}</span></a>`;
   document.getElementById('side').innerHTML = `
-    ${L('/', '🏠', 'home')}${L('/jobs', '🔍', 'jobs')}${L('/hunar', '🌟', 'hunar')}
-    ${L('/companies', '🏢', 'companies')}${L('/home-work', '🏠', 'home_work')}${L('/skills', '📚', 'learn')}${L('/anganwadi', '👶', 'child')}
+    ${L('/', '🏠', 'home')}${L('/jobs', '🔍', 'jobs')}${L('/learn', '📚', 'learn')}${L('/hunar', '🌟', 'hunar')}
+    ${L('/learn', '📚', 'learn')}${L('/companies', '🏢', 'companies')}${L('/home-work', '🏠', 'home_work')}${L('/skills', '📚', 'learn')}${L('/schemes', '🏛️', 'schemes')}${L('/anganwadi', '👶', 'child')}
     ${L('/shg', '🧵', 'shg')}${L('/business', '🚀', 'biz')}${L('/marketplace', '🛍️', 'market')}
     ${L('/voice', '🎤', 'ask_voice')}${L('/help', '🤖', 'help')}${L('/safety', '🛡️', 'safety')}
     <hr><div class="menu-ctl"><label>🌐 Language / भाषा / बोली</label>
@@ -32,8 +32,8 @@ function shell() {
   document.getElementById('bottomnav').innerHTML = `
     <a href="/" data-link data-r="">🏠<small>${t('home')}</small></a>
     <a href="/jobs" data-link data-r="jobs">🔍<small>${t('jobs')}</small></a>
+    <a href="/learn" data-link data-r="learn">📚<small>${t('learn')}</small></a>
     <a href="/hunar" data-link data-r="hunar">🌟<small>${t('hunar')}</small></a>
-    <a href="/skills" data-link data-r="skills">📚<small>${t('learn')}</small></a>
     <a href="/help" data-link data-r="help">🤖<small>${t('help')}</small></a>`;
   document.getElementById('menuBtn').onclick = () => { document.getElementById('side').classList.add('open'); document.getElementById('scrim').classList.add('on'); };
   document.getElementById('scrim').onclick = closeMenu;
@@ -92,7 +92,7 @@ Pages.home = async () => {
     <a class="svc" href="/jobs" data-link><span>🔍</span>${t('find_work')}<small>${hi ? 'पास का काम' : 'Nearby jobs'}</small></a>
     <a class="svc" href="/hunar" data-link><span>🌟</span>${t('show_hunar')}<small>${hi ? 'कंपनियां देखें' : 'Seen by companies'}</small></a>
     <a class="svc" href="/home-work" data-link><span>🏠</span>${t('home_work')}<small>${hi ? 'घर बैठे' : 'From home'}</small></a>
-    <a class="svc" href="/skills" data-link><span>📚</span>${t('learn_free')}<small>12 ${hi ? 'मुफ्त' : 'free'}</small></a>
+    <a class="svc" href="/learn" data-link><span>📚</span>${t('learn_free')}<small>12 ${hi ? 'मुफ्त' : 'free'}</small></a>
     <a class="svc" href="/voice" data-link><span>🎤</span>${t('ask_voice')}<small>${hi ? 'बिना लिखे' : 'No typing'}</small></a>
     <a class="svc" href="/anganwadi" data-link><span>👶</span>${t('childcare')}<small>${hi ? 'पास का केंद्र' : 'Nearby centre'}</small></a>
   </div>
@@ -221,6 +221,7 @@ async function render() {
   try {
     let html = '';
     if (path === '/') html = await Pages.home();
+    else if (path === '/skills' || path === '/skills/') { history.replaceState({}, '', '/learn'); return render(); }
     else if (path === '/jobs') html = await Pages.jobs();
     else if (seg[0] === 'jobs' && seg[1]) html = await Pages.jobDetail(seg[1]);
     else if (seg[0] === 'apply' && seg[1]) html = Pages.apply(seg[1]);
@@ -229,6 +230,7 @@ async function render() {
     else html = '<div class="card"><h2>404</h2><a class="btn" href="/" data-link>🏠 Home</a></div>';
     app.innerHTML = html + `<div class="footer">🌸 SHAKTI.RAJ • ${S.token ? `<a href="/profile" data-link>👩 ${esc(S.profile.name || 'Profile')}</a>` : `<a href="/login" data-link>🔑 ${t('login')}</a> • <a href="/register" data-link>📝 ${t('signup')}</a>`} • <a href="/settings" data-link>⚙️</a> • <a href="/admin" data-link>🔐</a><br><a href="/terms" data-link>${t('terms')}</a> • <a href="/privacy" data-link>${t('privacy')}</a> • <a href="/data-safety" data-link>${t('datasec')}</a><br><span class="small">build ${(typeof __BUILD_TAG__ !== 'undefined' ? __BUILD_TAG__ : '')} • auto-deploy check</span></div>`;
     window.scrollTo(0, 0); track('page_view', path);
+    if (/\/lesson\//.test(path) && window._startQuiz) { try { window._startQuiz(); } catch {} }
     if (path === '/jobs' && !document.getElementById('fq')) { /* filtered render */ }
   } catch (e) {
     app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:52px">🌸</div>

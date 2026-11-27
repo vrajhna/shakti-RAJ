@@ -46,8 +46,7 @@ const employerSchema = z.object({
   contact: z.string().trim().min(6).max(30),
   job: z.string().trim().max(500).optional().default(''),
 });
-const empJobSchema = z.object({
-  org: z.string().trim().min(2).max(120),
+const empJobSchema = z.object({  org: z.string().trim().min(2).max(120),
   title_hi: z.string().trim().min(3).max(120),
   title_en: z.string().trim().max(120).optional().default(''),
   category: z.string().trim().max(40).optional().default('general'),
@@ -58,6 +57,42 @@ const empJobSchema = z.object({
   desc_hi: z.string().trim().max(800).optional().default(''),
   home_based: z.boolean().optional().default(false),
   part_time: z.boolean().optional().default(true),
+});
+const quizSubmitSchema = z.object({
+  lessonId: id.optional().default(''),
+  quizId: z.string().trim().max(60).optional().default(''),
+  answers: z.array(z.coerce.number()).max(10).optional().default([]),
+});
+const reviewSchema = z.object({
+  courseId: id,
+  rating: z.coerce.number().min(1).max(5).default(5),
+  message: z.string().trim().max(500).optional().default(''),
+});
+const learnCourseSchema = z.object({
+  cat_id: z.string().trim().min(1).max(40),
+  title_hi: z.string().trim().min(3).max(120),
+  title_en: z.string().trim().max(120).optional().default(''),
+  desc_hi: z.string().trim().max(500).optional().default(''),
+  level: z.string().trim().max(20).optional().default('beginner'),
+  dur: z.string().trim().max(30).optional().default(''),
+  img: z.string().trim().max(30).optional().default(''),
+  skills: z.array(z.string().trim().max(40)).max(10).optional().default([]),
+  related_jobs: z.string().trim().max(120).optional().default(''),
+});
+const learnLessonSchema = z.object({
+  courseId: id.optional().default(''),
+  moduleId: z.string().trim().max(60).optional().default(''),
+  module_th: z.string().trim().max(120).optional().default(''),
+  module_te: z.string().trim().max(120).optional().default(''),
+  title_hi: z.string().trim().min(3).max(140),
+  title_en: z.string().trim().max(140).optional().default(''),
+  body_hi: z.string().trim().max(3000).optional().default(''),
+  body_en: z.string().trim().max(3000).optional().default(''),
+  steps_hi: z.array(z.string().trim().max(200)).max(10).optional().default([]),
+  practice_hi: z.string().trim().max(500).optional().default(''),
+  qh: z.string().trim().max(400).optional().default(''),
+  options: z.array(z.string().trim().max(200)).max(6).optional().default([]),
+  answer: z.coerce.number().min(0).max(5).optional().default(0),
 });
 const moderateSchema = z.object({
   kind: z.enum(['job', 'report', 'employer', 'hunar']),
@@ -79,4 +114,4 @@ function validate(schema) {
   };
 }
 
-module.exports = { registerSchema, loginSchema, adminLoginSchema, applySchema, reportSchema, certSchema, calcSchema, employerSchema, empJobSchema, moderateSchema, feedbackSchema, validate };
+module.exports = { registerSchema, loginSchema, adminLoginSchema, applySchema, reportSchema, certSchema, calcSchema, employerSchema, empJobSchema, quizSubmitSchema, reviewSchema, learnCourseSchema, learnLessonSchema, moderateSchema, feedbackSchema, validate };
