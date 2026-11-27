@@ -4,7 +4,7 @@
 const META_URLS = [process.env.META_API_URL, 'https://api.llama.com/v1/chat/completions', 'https://api.meta.ai/v1/chat/completions'].filter(Boolean);
 const META_URL = META_URLS[0];
 const META_MODEL = process.env.META_MODEL || 'muse-spark-1.3';
-const META_KEY = () => process.env.META_API_KEY || '';
+const META_KEY = () => (process.env.META_API_KEY || '').trim().replace(/^["']+|["']+$/g, '');
 
 function aiEnabled() { return !!META_KEY(); }
 
