@@ -6,7 +6,7 @@ const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const { query } = require('./db');
 const { hashPin, checkPin, signUser, signAdmin, requireUser, requireAdmin } = require('./auth');
-const { registerSchema, loginSchema, adminLoginSchema, applySchema, reportSchema, certSchema, calcSchema, employerSchema, moderateSchema, feedbackSchema, validate } = require('./validate');
+const { registerSchema, loginSchema, adminLoginSchema, applySchema, reportSchema, certSchema, calcSchema, employerSchema, empJobSchema, moderateSchema, feedbackSchema, validate } = require('./validate');
 const { aiEnabled, metaChat, SYSTEM, localAssist, META_MODEL } = require('./ai');
 const { hunarSchema, interestSchema } = require('./validateHunar');
 
@@ -304,6 +304,15 @@ function makeApp() {
     res.json({ ok: true, message_hi: 'रुचि दर्ज! महिला से संपर्क कराया जाएगा।', message_en: 'Interest recorded!' });
   });
 
+  /* ---------- events: knowledge sessions, job fairs, camps ---------- */
+  app.get('/api/events', async (req, res) => {
+    const district = req.query.district || '';
+    const r = district
+      ? await query(`SELECT * FROM events WHERE district=$1 ORDER BY event_date LIMIT 30`, [district])
+      : await query(`SELECT * FROM events ORDER BY event_date LIMIT 30`);
+    res.json({ count: r.rowCount, events: r.rows });
+  });
+
   /* ---------- employers ---------- */
   app.get('/api/employers', async (req, res) => {
     const r = await query(`SELECT * FROM employers WHERE status='approved' ORDER BY created_at DESC`);
@@ -315,6 +324,22 @@ function makeApp() {
       [id, req.valid.name, req.valid.type, req.valid.district, req.valid.contact, req.valid.job]);
     audit('employer', 'register', req.valid.name);
     res.json({ ok: true, request: { id }, message_hi: 'पंजीकरण मिला। दस्तावेज़ जांच के बाद ही सूची प्रकाशित होगी। कोई फीस नहीं।' });
+  });
+
+  /* ----- employer posts a real job (goes live only after admin approval) ----- */
+  app.post('/api/employer/jobs', requireUser, async (req, res) => {
+    const v = empJobSchema.safeParse(req.body);
+    if (!v.success) return res.status(400).json({ error: 'invalid input', issues: v.error.issues.slice(0, 5) });
+    const id = 'j' + Date.now().toString(36);
+    await query(`INSERT INTO jobs(id,title_hi,title_en,employer,employer_type,verified,verification,village,district,pincode,pay,pay_unit,pay_hi,hours,home_based,part_time,flexible,daily_wage,seasonal,category,skills,education,childcare,disability_friendly,phone,desc_hi,desc_en,status,posted_by)
+      VALUES($1,$2,$3,$4,'Employer-posted',false,'Pending review',$5,$6,'',0,'monthly',$7,'flexible',$8,$9,false,false,false,$10,'{}','no-formal',false,false,$11,$12,'','pending',$13)`,
+      [id, v.data.title_hi, v.data.title_en || v.data.title_hi, v.data.org, v.data.village, v.data.district, v.data.pay_hi, v.data.home_based, v.data.part_time, v.data.category, v.data.contact, v.data.desc_hi, req.auth.sub]);
+    audit(req.auth.sub, 'employer_job_post', id);
+    res.json({ ok: true, job: { id }, message_hi: 'भर्ती भेजी गई! जांच के बाद प्रकाशित होगी — तब महिलाएं आवेदन कर पाएंगी।', message_en: 'Job submitted! It goes live after verification.' });
+  });
+  app.get('/api/employer/jobs', requireUser, async (req, res) => {
+    const r = await query(`SELECT id,title_hi,district,pay_hi,status,verified,created_at FROM jobs WHERE posted_by=$1 ORDER BY created_at DESC LIMIT 50`, [req.auth.sub]);
+    res.json({ count: r.rowCount, jobs: r.rows });
   });
 
   /* ---------- safety / reports ---------- */
@@ -411,7 +436,11 @@ function makeApp() {
   app.post('/api/admin/moderate', requireAdmin(['super_admin', 'moderator', 'verifier']), validate(moderateSchema), async (req, res) => {
     const { kind, id, status, suspendJob } = req.valid;
     if (kind === 'job') {
-      const r = await query(`UPDATE jobs SET status=$2, verified = CASE WHEN $2='suspended' THEN false ELSE verified END WHERE id=$1 RETURNING *`, [id, status]);
+      const sets = [`status=$2`]; const pv = [id, status];
+      if (typeof req.valid.verified === 'boolean') { pv.push(req.valid.verified); sets.push(`verified=$${pv.length}`); }
+      if (status === 'published' && typeof req.valid.verified !== 'boolean') sets.push(`verified=true`);
+      if (status === 'suspended') sets.push(`verified=false`);
+      const r = await query(`UPDATE jobs SET ${sets.join(', ')} WHERE id=$1 RETURNING *`, pv);
       if (!r.rows[0]) return res.status(404).json({ error: 'job not found' });
       audit(req.auth.sub, 'moderate_job', id + '=' + status);
       return res.json({ ok: true, job: r.rows[0] });

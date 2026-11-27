@@ -8,6 +8,7 @@ directory = "./frontend/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
-# Overridden in dashboard (Settings → Variables). Empty here = configure after Railway deploy.
+# Set ONLY in dashboard (Settings → Variables → API_URL).
+# Never commit backend URLs here — dashboard value always wins.
 [vars]
 API_URL = ""

@@ -42,6 +42,10 @@ test.before(async () => {
         [x.id, x.cat, x.title_hi, x.title_en, x.level, x.dur, x.lessons, x.img, x.desc_hi, x.desc_en, x.body_hi, x.body_en, x.quiz]);
     }
   }
+  for (const ev of (SEED.events || []).slice(0, 4)) {
+    await query(`INSERT INTO events(id,title_hi,title_en,kind,event_date,place,district,contact,demo) VALUES($1,$2,$3,$4,$5,$6,$7,$8,true) ON CONFLICT(id) DO NOTHING`,
+      [ev.id, ev.title_hi, ev.title_en, ev.kind, ev.event_date, ev.place, ev.district, ev.contact]);
+  }
   server = makeApp().listen(PORT, '127.0.0.1');
   await new Promise(r => setTimeout(r, 300));
 });
@@ -109,6 +113,22 @@ test('saved jobs need login, work with token', async () => {
   assert.equal(s.s, 200);
   const l = await get('/api/saved', r.j.token);
   assert.ok(l.j.count >= 1);
+});
+test('employer posts real job (pending) + lists own + events live', async () => {
+  const ph = '98' + String(Date.now()).slice(-8);
+  const r = await post('/api/auth/register', { name: 'Employer Test', phone: ph, pin: '4321' });
+  const bad = await post('/api/employer/jobs', { org: 'x' }, r.j.token);
+  assert.equal(bad.s, 400);
+  const ok = await post('/api/employer/jobs', { org: 'Test Boutique', title_hi: 'Test Stitching Job', pay_hi: '₹5000', village: 'Test', contact: '9829000000' }, r.j.token);
+  assert.equal(ok.s, 200);
+  const mine = await get('/api/employer/jobs', r.j.token);
+  assert.ok(mine.j.count >= 1);
+  const ev = await get('/api/events');
+  assert.ok(ev.j.count >= 4);
+  // admin approves with verification
+  const adm = await post('/api/admin/login', { username: 'test-admin', password: 'test-admin-pw-1234' });
+  const mod = await post('/api/admin/moderate', { kind: 'job', id: ok.j.job.id, status: 'published', verified: true }, adm.j.token);
+  assert.equal(mod.s, 200); assert.equal(mod.j.job.verified, true);
 });
 test('admin login + overview + moderation guard', async () => {
   const no = await get('/api/admin/overview');

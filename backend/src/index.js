@@ -56,10 +56,15 @@ async function ensureSeed() {
     await query(`INSERT INTO hunar_profiles(id,name,phone,village,district,skills,experience,expected_work,available_home,verified,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,true,'approved') ON CONFLICT(id) DO NOTHING`,
       [h.id, h.name, h.phone, h.village, h.district, h.skills, h.experience, h.expected_work, h.home]);
   }
+  for (const ev of SEED.events) {
+    await query(`INSERT INTO events(id,title_hi,title_en,kind,event_date,place,district,contact,demo) VALUES($1,$2,$3,$4,$5,$6,$7,$8,true) ON CONFLICT(id) DO NOTHING`,
+      [ev.id, ev.title_hi, ev.title_en, ev.kind, ev.event_date, ev.place, ev.district, ev.contact]);
+  }
   console.log('[boot] seed complete');
 }
 
 async function main() {
+  process.on('unhandledRejection', (e) => console.error('[boot] unhandled rejection (server stays up):', String((e && e.message) || e).slice(0, 200)));
   await migrate();
   await ensureAdmin();
   await ensureSeed();

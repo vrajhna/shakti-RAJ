@@ -93,9 +93,9 @@ export function jobImg(j) {
   return m[j.category] || IMG.hero2;
 }
 export function vBadge(j) {
-  if (j.status === 'suspended') return '<span class="badge b-red">⛔ Blocked</span>';
-  if (j.verified) return `<span class="badge b-green">✅ ${S.lang === 'en' ? 'Verified' : 'सत्यापित'} • ${esc(j.verification || '')}</span>`;
-  return `<span class="badge b-orange">⏳ ${S.lang === 'en' ? 'Pending review' : 'सत्यापन लंबित'}</span>`;
+  if (j.status === 'suspended') return `<span class="badge b-red">⛔ ${t('blocked_msg')}</span>`;
+  if (j.verified) return `<span class="badge b-green">✅ ${t('verified')}${j.verification ? ' • ' + esc(j.verification) : ''}</span>`;
+  return `<span class="badge b-orange">⏳ ${t('pending')}</span>`;
 }
 export function jobCard(j) {
   const hi = S.lang !== 'en';
@@ -105,9 +105,9 @@ export function jobCard(j) {
     <img class="imgcover ph" loading="lazy" decoding="async" src="${jobImg(j)}" onerror="this.style.display='none'" alt="">
     <div style="margin-top:8px"><b style="font-size:19px">${esc(hi ? j.title_hi : j.title_en)}</b></div>
     <div class="kv"><span>${esc(j.employer)} • ${esc(j.village)}, ${esc(j.district)}${j.distance_km ? ' • ' + j.distance_km + ' km' : ''}</span></div>
-    <div>${vBadge(j)}${j.home_based ? `<span class="badge b-blue">🏠 ${hi ? 'घर से' : 'Home'}</span>` : ''}${j.childcare ? `<span class="badge b-green">👶 ${hi ? 'बच्चों के साथ' : 'Childcare'}</span>` : ''}</div>
+    <div>${vBadge(j)}${j.home_based ? `<span class="badge b-blue">🏠 ${t('home_tag')}</span>` : ''}${j.childcare ? `<span class="badge b-green">👶 ${t('child_ok')}</span>` : ''}</div>
     <div style="font-size:21px;font-weight:900;color:var(--green)">${esc(j.pay_hi)}</div>
-    <div class="kv"><span>⏰ ${esc(j.hours)}${j.part_time ? (hi ? ' • पार्ट-टाइम' : ' • Part-time') : ''}</span></div>
+    <div class="kv"><span>⏰ ${esc(j.hours)}${j.part_time ? ' • ' + t('part_time') : ''}</span></div>
     <div class="btnrow">
       <a class="btn" href="/jobs/${j.id}" data-link>${t('view')} ➜</a>
       <button class="btn sec" onclick="window._saveJob('${j.id}')">♡ ${S.lang === 'en' ? 'Save' : 'सहेजें'}</button>
@@ -136,15 +136,20 @@ export function slideshow(slides) {
     const el = document.getElementById(id); if (!el) return;
     const box = el.querySelector('.slides'), d = el.querySelectorAll('.ss-dots i');
     const capT = el.querySelector('.ss-cap h1'), capP = el.querySelector('.ss-cap p');
-    let i = 0;
-    const timer = setInterval(() => {
-      if (!document.getElementById(id)) { clearInterval(timer); return; }
-      i = (i + 1) % slides.length;
+    let i = 0, tx = 0;
+    const show = (k) => {
+      i = (k + slides.length) % slides.length;
       box.style.transform = `translateX(-${i * 100}%)`;
-      d.forEach((x, k) => x.classList.toggle('on', k === i));
+      d.forEach((x, j) => x.classList.toggle('on', j === i));
       if (capT) capT.textContent = slides[i].t;
       if (capP) capP.textContent = slides[i].s;
-    }, 4500);
+    };
+    const timer = setInterval(() => { if (!document.getElementById(id)) { clearInterval(timer); return; } show(i + 1); }, 4500);
+    el.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+    el.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - tx;
+      if (Math.abs(dx) > 40) show(i + (dx < 0 ? 1 : -1));
+    });
   }, 50);
   return `<div class="slideshow" id="${id}"><div class="slides">${imgs}</div>
     <div class="ss-cap"><h1>${esc(cap.t)}</h1><p>${esc(cap.s)}</p></div>

@@ -10,8 +10,6 @@ window.listenInto = listenInto; window.speak = speak;
 function shell() {
   const hi = S.lang !== 'en';
   document.getElementById('tagline').textContent = t('tagline');
-  document.getElementById('strip').innerHTML =
-    `🛡️ ${t('strip')} • हेल्पलाइन <b>181</b> • साइबर <b>1930</b> • <a href="/safety" data-link>${t('safety')} केंद्र</a>`;
   const L = (p, ic, k) => `<a href="${p}" data-link>${ic} <span>${t(k)}</span></a>`;
   document.getElementById('side').innerHTML = `
     ${L('/', '🏠', 'home')}${L('/jobs', '🔍', 'jobs')}${L('/hunar', '🌟', 'hunar')}
@@ -29,6 +27,7 @@ function shell() {
       </div></div><hr>
     ${L('/employer', '🏢', 'employer')}${L('/profile', '👩', 'signup')}${L('/admin', '🔐', 'admin')}
     ${L('/analytics', '📊', 'analytics')}${L('/pitch', '📑', 'pitch')}${L('/about', 'ℹ️', 'about')}
+    ${L('/terms', '📜', 'terms')}${L('/privacy', '🔏', 'privacy')}${L('/data-safety', '🔐', 'datasec')}
     <div class="demo-note">🌸 SHAKTI • Rajasthan Innovation Challenge • Anganwadi = demo data</div>`;
   document.getElementById('bottomnav').innerHTML = `
     <a href="/" data-link data-r="">🏠<small>${t('home')}</small></a>
@@ -78,11 +77,6 @@ Pages.home = async () => {
   const near = (jobs.jobs || []).slice(0, 4);
   const hunar = hunarRes.profiles || [];
   const employers = empRes.employers || [];
-  const stat = `<div class="statgrid">
-    <div class="stat"><b>${jobs.count ?? '—'}</b><small>${hi ? 'सत्यापित काम' : 'Verified jobs'}</small></div>
-    <div class="stat"><b>12</b><small>${hi ? 'मुफ्त कोर्स' : 'Free courses'}</small></div>
-    <div class="stat"><b>${hunar.length}</b><small>${hi ? 'हुनर प्रोफाइल' : 'Skill profiles'}</small></div>
-    <div class="stat"><b>181</b><small>${hi ? 'महिला हेल्पलाइन' : 'Women helpline'}</small></div></div>`;
   return `
   ${slideshow([
     { img: IMG.woman, t: hi ? 'नमस्ते बहन 🙏' : 'Hello sister 🙏', s: hi ? 'आज क्या करेंगी? पास का सत्यापित काम' : 'What shall we do today? Verified nearby work' },
@@ -94,7 +88,6 @@ Pages.home = async () => {
   ])}
   <div class="searchwrap"><div class="searchbar"><input id="hq" placeholder="${t('search_ph')}"><button onclick="window._goSearch()">🔍</button>
     <button onclick="listenInto(document.getElementById('hq'))" title="voice">🎤</button></div></div>
-  <div class="ticker">🌸 ${hi ? '75% से अधिक ग्रामीण महिलाएं असंगठित श्रम में — SHAKTI उन्हें सुरक्षित, सत्यापित, घर-पास के काम से जोड़ता है • कभी फीस/OTP न दें' : '75%+ rural women in informal labour — SHAKTI connects them to safe, verified, nearby work • never pay fees/OTP'}</div>
   <div class="grid6">
     <a class="svc" href="/jobs" data-link><span>🔍</span>${t('find_work')}<small>${hi ? 'पास का काम' : 'Nearby jobs'}</small></a>
     <a class="svc" href="/hunar" data-link><span>🌟</span>${t('show_hunar')}<small>${hi ? 'कंपनियां देखें' : 'Seen by companies'}</small></a>
@@ -103,8 +96,7 @@ Pages.home = async () => {
     <a class="svc" href="/voice" data-link><span>🎤</span>${t('ask_voice')}<small>${hi ? 'बिना लिखे' : 'No typing'}</small></a>
     <a class="svc" href="/anganwadi" data-link><span>👶</span>${t('childcare')}<small>${hi ? 'पास का केंद्र' : 'Nearby centre'}</small></a>
   </div>
-  ${stat}
-  <div class="card"><h2>✨ ${t('near_you')}</h2>${near.map(jobCard).join('') || `<p>${hi ? 'जल्द आ रहा है' : 'Coming soon'}</p>`}
+  <div class="card"><h2>✨ ${t('near_you')}</h2>${near.map(jobCard).join('') || `<p>${t('coming_soon')}</p>`}
     <a class="btn sec" href="/jobs" data-link>${t('jobs')} ➜</a></div>
   <div class="card"><h2>🏢 ${hi ? 'प्रतिष्ठित कंपनियां — सीधी भर्ती' : 'Reputed companies hiring directly'}</h2>
     <p>${hi ? 'सत्यापित नियोक्ता। कोई बिचौलिया नहीं, कोई फीस नहीं। अपना हुनर दिखाएं — यही कंपनियां आपको खोजेंगी।' : 'Verified employers. No middlemen, no fees. Showcase your skill — these companies will discover you.'}</p>
@@ -141,15 +133,15 @@ Pages.jobs = async () => {
   <div class="card" style="border:2px dashed var(--terra)">
     <div style="display:flex;gap:8px"><input id="fq" value="${esc(qs.get('q') || '')}" placeholder="${t('search_ph')}"><button class="btn yel" style="min-width:60px" onclick="listenInto(document.getElementById('fq'))">🎤</button></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-      <select id="fdist"><option value="">${hi ? 'सब जिले' : 'All districts'}</option>${(d.districts || []).map(x => `<option ${x === qs.get('d') ? 'selected' : ''}>${x}</option>`).join('')}</select>
-      <select id="fmax"><option value="0">${hi ? 'कोई भी दूरी' : 'Any distance'}</option><option value="2">2 km</option><option value="5">5 km</option><option value="10">10 km</option><option value="20">20 km</option></select>
+      <select id="fdist"><option value="">${t('all_dist')}</option>${(d.districts || []).map(x => `<option ${x === qs.get('d') ? 'selected' : ''}>${x}</option>`).join('')}</select>
+      <select id="fmax"><option value="0">${t('any_dist')}</option><option value="2">2 km</option><option value="5">5 km</option><option value="10">10 km</option><option value="20">20 km</option></select>
     </div>
     <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="fhome" style="width:28px;height:28px;min-height:28px"> 🏠 ${t('home_work')}</label>
-    <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="fchild" style="width:28px;height:28px;min-height:28px"> 👶 ${hi ? 'बच्चों के साथ हो सके' : 'Childcare compatible'}</label>
-    <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="fdis" style="width:28px;height:28px;min-height:28px"> ♿ ${hi ? 'दिव्यांग-सुलभ' : 'Disability friendly'}</label>
+    <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="fchild" style="width:28px;height:28px;min-height:28px"> 👶 ${t('with_child')}</label>
+    <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="fdis" style="width:28px;height:28px;min-height:28px"> ♿ ${t('disab')}</label>
     <button class="btn" style="width:100%" onclick="window._doFilter()">🔍 ${t('search')}</button>
   </div>
-  <div id="jobsList">${S.jobsCache.map(jobCard).join('') || `<p>${hi ? 'कोई काम नहीं' : 'No jobs'}</p>`}</div>`;
+  <div id="jobsList">${S.jobsCache.map(jobCard).join('') || `<p>${t('no_jobs')}</p>`}</div>`;
 };
 window._doFilter = async () => {
   const d = await api('/api/jobs?verifiedOnly=true&' + new URLSearchParams({
@@ -158,7 +150,7 @@ window._doFilter = async () => {
     childcare: document.getElementById('fchild').checked, disability: document.getElementById('fdis').checked,
   }).toString());
   S.jobsCache = d.jobs || [];
-  document.getElementById('jobsList').innerHTML = S.jobsCache.map(jobCard).join('');
+  document.getElementById('jobsList').innerHTML = S.jobsCache.map(jobCard).join('') || `<p>${t('no_jobs')}</p>`;
   track('job_filter', '/jobs');
 };
 Pages.jobDetail = async (id) => {
@@ -171,27 +163,27 @@ Pages.jobDetail = async (id) => {
   <div class="kv"><span>${esc(j.employer)} • ${esc(j.village)}, ${esc(j.district)}${j.distance_km ? ' • ' + j.distance_km + ' km' : ''}</span></div>
   <div>${vBadge(j)}</div>
   <div style="font-size:22px;font-weight:900;color:var(--green)">${esc(j.pay_hi)}</div>
-  <div class="kv"><span>⏰ ${hi ? 'समय' : 'Hours'}</span><b>${esc(j.hours)}</b></div>
+  <div class="kv"><span>⏰ ${t('hours_l')}</span><b>${esc(j.hours)}</b></div>
   <div class="kv"><span>🏠</span><b>${j.home_based ? (hi ? 'हां' : 'Yes') : (hi ? 'नहीं' : 'No')}</b></div>
   <div class="kv"><span>👶</span><b>${j.childcare ? (hi ? 'हां' : 'Yes') : (hi ? 'नहीं' : 'No')}</b></div>
-  <div class="kv"><span>📞</span><b>${esc(j.phone || '—')}</b></div>
+  <div class="kv"><span>📞 ${t('contact_l')}</span><b>${esc(j.phone || '—')}</b></div>
   <p>${esc(hi ? j.desc_hi : j.desc_en)}</p>
   ${!j.verified ? `<div class="warnbox">⚠️ ${hi ? 'सत्यापन लंबित — अग्रिम/किट फीस बिल्कुल न दें। OTP/बैंक डिटेल न बताएं।' : 'Pending verification — NEVER pay advance/kit fee.'}</div>` : ''}
   <div class="btnrow"><button class="btn yel" data-speak="${esc(hi ? j.title_hi + '. ' + j.desc_hi : j.title_en + '. ' + j.desc_en).slice(0, 300)}">🔊 ${t('listen')}</button>
   ${j.phone && !/blocked|pending/i.test(j.phone) ? `<a class="btn warn" href="tel:${esc(j.phone.replace(/X/g, ''))}">📞 ${t('call')}</a>` : ''}</div>
   ${j.status !== 'suspended' ? `<a class="btn" style="width:100%" href="/apply/${j.id}" data-link>📝 ${t('apply')}</a>` : `<p>⛔ ${hi ? 'आवेदन बंद' : 'Closed'}</p>`}
   <div style="margin-top:8px"><a href="/report?job=${j.id}" data-link>🚩 ${hi ? 'यह काम रिपोर्ट करें' : 'Report this job'}</a></div></div>
-  <h3>${hi ? 'मिलते-जुलते काम' : 'Similar work'}</h3>${(d.related || []).map(jobCard).join('')}`;
+  <h3>${t('similar')}</h3>${(d.related || []).map(jobCard).join('')}`;
 };
 Pages.apply = (id) => {
   const j = S.jobsCache.find(x => x.id === id) || { id, title_hi: '', title_en: '' };
   const hi = S.lang !== 'en';
   return `<h2>📝 ${t('apply')} — ${esc(hi ? (j.title_hi || id) : (j.title_en || id))}</h2>
   <div class="safebox">✅ ${hi ? 'बिना रिज्यूमे — सिर्फ 3 सवाल। कोई फीस नहीं।' : 'No resume — just 3 questions. No fees.'}</div>
-  <div class="card"><label>${hi ? 'आपका नाम *' : 'Your name *'}</label><input id="aname" value="${esc(S.profile.name)}">
-  <label>${hi ? 'मोबाइल *' : 'Mobile *'}</label><input id="aphone" inputmode="numeric" value="${esc(S.profile.phone)}">
-  <label>${hi ? 'गांव' : 'Village'}</label><input id="avill" value="${esc(S.profile.village)}">
-  <label>${hi ? 'आप क्या जानती हैं?' : 'Your skills?'}</label>
+  <div class="card"><label>${t('your_name')} *</label><input id="aname" value="${esc(S.profile.name)}">
+  <label>${t('mobile_l')} *</label><input id="aphone" inputmode="numeric" value="${esc(S.profile.phone)}">
+  <label>${t('village_l')}</label><input id="avill" value="${esc(S.profile.village)}">
+  <label>${t('skills_q')}</label>
   <div style="display:flex;gap:8px"><input id="aans"><button class="btn yel" style="min-width:60px" onclick="listenInto(document.getElementById('aans'))">🎤</button></div>
   <button class="btn" style="width:100%" onclick="window._doApply('${id}')">✅ ${t('submit')}</button></div>`;
 };
@@ -235,7 +227,7 @@ async function render() {
     else if (path === '/applications') html = await Pages.applications();
     else if (Pages['route:' + (seg[0] || '')]) html = await Pages['route:' + seg[0]](seg[1], new URLSearchParams(location.search));
     else html = '<div class="card"><h2>404</h2><a class="btn" href="/" data-link>🏠 Home</a></div>';
-    app.innerHTML = html + `<div class="footer">🌸 SHAKTI • ${S.token ? `<a href="/profile" data-link>👩 ${esc(S.profile.name || 'Profile')}</a>` : `<a href="/login" data-link>🔑 ${t('login')}</a> • <a href="/register" data-link>📝 ${t('signup')}</a>`} • <a href="/settings" data-link>⚙️</a> • <a href="/admin" data-link>🔐</a><br><span class="small">build ${(typeof __BUILD_TAG__ !== 'undefined' ? __BUILD_TAG__ : '')} • auto-deploy check</span></div>`;
+    app.innerHTML = html + `<div class="footer">🌸 SHAKTI.RAJ • ${S.token ? `<a href="/profile" data-link>👩 ${esc(S.profile.name || 'Profile')}</a>` : `<a href="/login" data-link>🔑 ${t('login')}</a> • <a href="/register" data-link>📝 ${t('signup')}</a>`} • <a href="/settings" data-link>⚙️</a> • <a href="/admin" data-link>🔐</a><br><a href="/terms" data-link>${t('terms')}</a> • <a href="/privacy" data-link>${t('privacy')}</a> • <a href="/data-safety" data-link>${t('datasec')}</a><br><span class="small">build ${(typeof __BUILD_TAG__ !== 'undefined' ? __BUILD_TAG__ : '')} • auto-deploy check</span></div>`;
     window.scrollTo(0, 0); track('page_view', path);
     if (path === '/jobs' && !document.getElementById('fq')) { /* filtered render */ }
   } catch (e) {

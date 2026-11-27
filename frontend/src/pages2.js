@@ -273,9 +273,16 @@ export function registerPages(Pages) {
     <label>🌐 ${H ? 'भाषा / बोली' : 'Language'}</label><select id="langSel2">${(await import('./i18n.js')).LANGS.map(l => `<option value="${l.v}" ${l.v === S.lang ? 'selected' : ''}>${l.n}</option>`).join('')}</select>
     <p class="footer">Marwari • Mewari • Dhundhari • Harauti • Shekhawati • Wagdi — ${H ? 'ऑडियो-सहायता सहित' : 'with assisted audio'}</p>
     <button class="btn" onclick="window._saveLang()">${t('save')}</button></div>
+    <div class="card"><b>📲 ${t('install_app')}</b><p class="small">${t('install_note')}</p>
+    <button class="btn" style="width:100%" onclick="window._doInstall()">📲 ${t('install_app')}</button></div>
     <div class="card"><b>🏢 ${H ? 'नियोक्ता हैं?' : 'Employer?'}</b><p>${H ? 'सत्यापन के बाद ही सूची। कोई फीस नहीं।' : 'Listing only after verification.'}</p><a class="btn warn" href="/employer" data-link>📝 ${t('employer')}</a></div>`;
   };
   window._saveLang = async () => { const { setLang } = await import('./i18n.js'); setLang(document.getElementById('langSel2').value); location.href = '/settings'; };
+  window._doInstall = async () => {
+    if (window._deferredPrompt) { window._deferredPrompt.prompt(); await window._deferredPrompt.userChoice.catch(() => {}); window._deferredPrompt = null; }
+    else toast(S.lang === 'en' ? 'Browser menu → “Add to Home Screen / Install app”.' : 'ब्राउज़र मेन्यू → “होम स्क्रीन पर जोड़ें / Install app” दबाएं।');
+  };
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); window._deferredPrompt = e; });
   Pages['route:login'] = async () => {
     const H = hi();
     return `<h2>🔑 ${t('login')}</h2><div class="card"><label>${H ? 'मोबाइल' : 'Mobile'}</label><input id="lphone" inputmode="numeric" value="${esc(S.profile.phone)}">
@@ -304,7 +311,8 @@ export function registerPages(Pages) {
     else toast('⚠️ ' + (r.error || 'error'));
   };
   window._doLogout = () => { S.token = ''; localStorage.removeItem('shakti_token'); location.href = '/'; };
-  Pages['route:employer'] = async () => {
+  Pages['route:employer'] = async (arg) => {
+    if (arg === 'mine') return Pages['route:employer-mine']();
     const H = hi();
     return `<h2>🏢 ${t('employer')}</h2><div class="card">
     <label>${H ? 'संगठन *' : 'Organisation *'}</label><input id="ename">
@@ -313,7 +321,31 @@ export function registerPages(Pages) {
     <label>${H ? 'संपर्क *' : 'Contact *'}</label><input id="econtact">
     <label>${H ? 'काम का विवरण' : 'Job detail'}</label><textarea id="ejob" rows="3"></textarea>
     <button class="btn" style="width:100%" onclick="window._doEmployer()">📩 ${t('submit')}</button>
-    <p class="footer">${H ? 'पहचान + संपर्क + पता जांच → अनुमोदन। फीस वाली सूची कभी नहीं।' : 'ID + contact + address check → approval.'}</p></div>`;
+    <p class="footer">${H ? 'पहचान + संपर्क + पता जांच → अनुमोदन। फीस वाली सूची कभी नहीं।' : 'ID + contact + address check → approval.'}</p></div>
+  <div class="card"><h3>📢 ${H ? 'सीधी भर्ती डालें (लॉगिन जरूरी)' : 'Post a real job (login required)'}</h3>
+    <p class="small">${H ? 'भर्ती जांच के बाद ही live होगी। महिलाएं सीधे आवेदन करेंगी।' : 'Goes live only after verification. Women apply directly.'}</p>
+    <label>${H ? 'संगठन *' : 'Organisation *'}</label><input id="jorg">
+    <label>${H ? 'काम का नाम *' : 'Job title *'}</label><input id="jtitle">
+    <label>${H ? 'वेतन' : 'Pay'}</label><input id="jpay" placeholder="₹8,000/माह">
+    <label>${H ? 'गांव/शहर' : 'Village/City'}</label><input id="jvill">
+    <label>${H ? 'संपर्क *' : 'Contact *'}</label><input id="jcontact">
+    <label>${H ? 'विवरण' : 'Details'}</label><textarea id="jdesc" rows="2"></textarea>
+    <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="jhome" style="width:28px;height:28px;min-height:28px"> 🏠 ${H ? 'घर से हो सकता है' : 'Home-based possible'}</label>
+    <button class="btn warn" style="width:100%" onclick="window._doEmpJob()">📢 ${H ? 'भर्ती भेजें' : 'Post job'}</button>
+    <div class="btnrow"><a class="btn sec" href="/employer/mine" data-link>${H ? 'मेरी भर्तियां' : 'My postings'}</a></div></div>`;
+  window._doEmpJob = async () => {
+    if (!S.token) { toast(S.lang === 'en' ? 'Login to post a job' : 'भर्ती हेतु लॉगिन करें'); location.href = '/login'; return; }
+    const r = await api('/api/employer/jobs', { method: 'POST', body: JSON.stringify({ org: document.getElementById('jorg').value, title_hi: document.getElementById('jtitle').value, pay_hi: document.getElementById('jpay').value, village: document.getElementById('jvill').value, contact: document.getElementById('jcontact').value, desc_hi: document.getElementById('jdesc').value, home_based: document.getElementById('jhome').checked }) });
+    if (r.ok) toast('✅ ' + (hi() ? r.message_hi : r.message_en)); else toast('⚠️ ' + (r.error || 'error'));
+  };
+  };
+  Pages['route:employer-mine'] = async () => {
+    const H = hi();
+    if (!S.token) { location.href = '/login'; return `<p>…</p>`; }
+    const d = await api('/api/employer/jobs');
+    return `<h2>📢 ${H ? 'मेरी भर्तियां' : 'My postings'}</h2>
+    ${(d.jobs || []).map(j => `<div class="card"><b>${esc(j.title_hi)}</b> — ${esc(j.pay_hi)}<br><span class="badge ${j.status === 'published' ? 'b-green' : 'b-orange'}">${esc(j.status)}${j.verified ? ' ✅' : ''}</span><div class="kv"><span>${esc(j.id)} • ${esc((j.created_at || '').slice(0, 10))}</span></div></div>`).join('') || `<p>${H ? 'अभी कोई भर्ती नहीं' : 'No postings yet'}</p>`}
+    <a class="btn sec" href="/employer" data-link>← ${t('back')}</a>`;
   };
   window._doEmployer = async () => {
     const r = await api('/api/employers/apply', { method: 'POST', body: JSON.stringify({ name: document.getElementById('ename').value, type: document.getElementById('etype').value, district: document.getElementById('edist').value, contact: document.getElementById('econtact').value, job: document.getElementById('ejob').value }) });
@@ -371,5 +403,21 @@ export function registerPages(Pages) {
     <p>🌸 <b>SHAKTI</b> — ${H ? 'पहुंच-योग्य अवसर + सुरक्षा + सम्मान + आर्थिक भागीदारी।' : 'accessible opportunity + safety + dignity + economic participation.'}</p></div>
     <div class="card"><b>${H ? 'ईमानदार सीमाएं' : 'Honest limits'}</b><ul><li>Anganwadi = demo</li><li>Certificates = learning proof</li><li>Dialects = assisted audio</li><li>Verified ≠ 100% guarantee</li></ul></div>`;
   };
+  /* ----- legal: terms / privacy / data-safety ----- */
+  const legalShell = (title, bodyHi, bodyEn) => {
+    const H = hi();
+    return `<div class="card legal"><h2>${title}</h2>${H ? bodyHi : bodyEn}
+    <div class="btnrow"><a class="btn sec" href="/help" data-link>💬 ${t('help')}</a><a class="btn sec" href="/safety" data-link>🛡️ ${t('safety')}</a></div></div>`;
+  };
+  Pages['route:terms'] = async () => legalShell(t('terms'),
+    `<ul><li>SHAKTI मुफ्त है — कोई फीस, कोई प्रीमियम नहीं।</li><li>केवल सत्यापित सूचनाएं प्रकाशित होती हैं; अग्रिम फीस/OTP मांगने वाली सूची कभी नहीं।</li><li>गलत जानकारी पर रिपोर्ट करें — 48 घंटे में जांच।</li><li>खतरे में हों तो पहले 181/112 पर कॉल करें।</li></ul><p class="footer">यह प्रोटोटाइप नियमावली है — पायलट में विधिक समीक्षा होगी।</p>`,
+    `<ul><li>SHAKTI is free — no fees, no premium.</li><li>Only verified listings are published; advance-fee/OTP listings never.</li><li>Report wrong info — reviewed in 48 hours.</li><li>In danger, call 181/112 first.</li></ul><p class="footer">Prototype terms — legal review in pilot.</p>`);
+  Pages['route:privacy'] = async () => legalShell(t('privacy'),
+    `<ul><li>मोबाइल नंबर आंशिक दिखता है (जैसे 98XXXX45) — पूरा नंबर सिर्फ लॉगिन पर।</li><li>आवेदन केवल संबंधित नियोक्ता व टीम को दिखता है।</li><li>एनालिटिक्स में सिर्फ गिनती — कोई व्यक्तिगत लोकेशन/शिकायत सार्वजनिक नहीं।</li><li>खाता मिटाने हेतु Help से लिखें।</li></ul>`,
+    `<ul><li>Phone numbers are masked (e.g. 98XXXX45) — full number only after login.</li><li>Applications visible only to the employer and team.</li><li>Analytics counts only — no personal location/complaints public.</li><li>To delete your account, write via Help.</li></ul>`);
+  Pages['route:data-safety'] = async () => legalShell(t('datasec'),
+    `<ul><li>पासवर्ड (PIN) हैश होकर सुरक्षित रहता है — टीम भी नहीं देख सकती।</li><li>सभी ट्रैफ़िक एन्क्रिप्टेड (HTTPS)। गुप्त चाबियां सिर्फ सर्वर पर।</li><li>OTP/आधार/बैंक डिटेल SHAKTI कभी नहीं मांगता — मांगे तो 1930 पर रिपोर्ट करें।</li><li>नियमित सुरक्षा जांच व ऑडिट लॉग।</li></ul>`,
+    `<ul><li>PINs stored hashed — even the team cannot see them.</li><li>All traffic encrypted (HTTPS). Secrets stay server-side.</li><li>SHAKTI never asks OTP/Aadhaar/bank — if asked, report to 1930.</li><li>Regular security checks and audit logs.</li></ul>`);
+
   Pages['route:feedback'] = async () => { location.href = '/help'; return ''; };
 }
