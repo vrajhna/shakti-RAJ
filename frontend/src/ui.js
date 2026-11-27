@@ -111,7 +111,7 @@ export function jobCard(j) {
     ${blocked ? `<div class="warnbox">⛔ ${hi ? 'स्कैम पैटर्न पर ब्लॉक — आवेदन बंद।' : 'Blocked scam pattern.'}</div>` : ''}
     <b>${esc(hi ? j.title_hi : j.title_en)}</b>
     <div class="meta">${esc(j.employer)} • ${esc(j.village)}, ${esc(j.district)}${j.distance_km ? ' • ' + j.distance_km + ' km' : ''}</div>
-    <div>${vBadge(j)}${j.home_based ? `<span class="badge b-blue">🏠 ${t('home_tag')}</span>` : ''}</div>
+    <div>${vBadge(j)}${/^vrajhna/i.test(j.employer || '') ? `<span class="badge b-blue">⭐ ${S.lang === 'en' ? 'Featured' : 'विशेष'}</span>` : ''}${j.home_based ? `<span class="badge b-blue">🏠 ${t('home_tag')}</span>` : ''}</div>
     <div class="pay">${esc(j.pay_hi)}</div>
     <div class="btnrow">
       <a class="btn sm" href="/jobs/${j.id}" data-link>${t('view')} ➜</a>

@@ -8,9 +8,16 @@ const META_KEY = () => process.env.META_API_KEY || '';
 
 function aiEnabled() { return !!META_KEY(); }
 
+function cleanBase(b) {
+  const s = String(b || '').trim().replace(/\/+$/, '');
+  return /^https?:\/\/[^/]+\/v1\/chat\/completions$/.test(s) ? s : null;
+}
 async function metaChat(messages, maxTokens = 800) {
-  if (!aiEnabled()) return null;
-  for (const base of [...new Set(META_URLS)]) {
+  if (!aiEnabled()) return { text: null, metaStatus: 'no-key' };
+  let last = 'unknown';
+  for (const base0 of [...new Set(META_URLS)]) {
+    const base = cleanBase(base0);
+    if (!base) { last = 'bad-url'; continue; }
     for (const extra of [{ reasoning_effort: 'low' }, {}]) {
       const ctrl = new AbortController();
       const to = setTimeout(() => ctrl.abort(), 25000);
@@ -21,15 +28,15 @@ async function metaChat(messages, maxTokens = 800) {
           body: JSON.stringify({ model: META_MODEL, messages, max_completion_tokens: maxTokens, ...extra }),
         });
         clearTimeout(to);
-        if (!r.ok) { console.error('[ai] meta http', r.status, base); continue; }
+        if (!r.ok) { last = 'http-' + r.status; console.error('[ai] meta http', r.status, base); continue; }
         const j = await r.json();
         const txt = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || null;
-        if (txt) { if (base !== META_URL) console.log('[ai] working base:', base); return txt; }
-        console.error('[ai] meta empty content', base);
-      } catch (e) { clearTimeout(to); console.error('[ai] meta error', String(e.message || e).slice(0, 120), base); }
+        if (txt) { if (base !== META_URL) console.log('[ai] working base:', base); return { text: txt, metaStatus: 'ok' }; }
+        last = 'empty-content'; console.error('[ai] meta empty content', base);
+      } catch (e) { clearTimeout(to); last = 'error'; console.error('[ai] meta error', String(e.message || e).slice(0, 120), base); }
     }
   }
-  return null;
+  return { text: null, metaStatus: last };
 }
 
 const SYSTEM = `You are SHAKTI Sahayak, a kind Rajasthan women-livelihood helper. Reply in the user's language (simple Hindi default, simple English when asked). Keep EVERY reply under 90 words — short, chat-style, one idea at a time. RULES: (1) Never invent jobs, employers, verification, pay, schemes, or deadlines — use only the verified context given. (2) Never say an unverified listing is safe. (3) Always warn: never pay advance/registration fee, never share OTP/Aadhaar/bank details. (4) Suggest verified filters, SHG groups, free courses, Anganwadi search, helplines 181/1930.`;
@@ -63,7 +70,9 @@ function localAssist(text, jobs) {
 }
 
 async function metaChatStream(messages, maxTokens = 800, onToken) {
-  for (const base of [...new Set(META_URLS)]) {
+  for (const base0 of [...new Set(META_URLS)]) {
+    const base = cleanBase(base0);
+    if (!base) continue;
     for (const extra of [{ reasoning_effort: 'low' }, {}]) {
       const ctrl = new AbortController();
       const to = setTimeout(() => ctrl.abort(), 45000);

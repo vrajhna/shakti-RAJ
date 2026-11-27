@@ -125,7 +125,7 @@ function makeApp() {
     if (cat) { p.push(cat); conds.push(`category=$${p.length}`); }
     if (maxD > 0) { p.push(maxD); conds.push(`distance_km <= $${p.length}`); }
     if (q) { p.push(`%${q}%`); conds.push(`(LOWER(title_hi||' '||title_en||' '||employer||' '||village||' '||district||' '||category) LIKE $${p.length})`); }
-    const r = await query(`SELECT * FROM jobs WHERE ${conds.join(' AND ')} ORDER BY verified DESC, distance_km ASC LIMIT 100`, p);
+    const r = await query(`SELECT *, (employer ILIKE 'Vrajhna%') AS featured FROM jobs WHERE ${conds.join(' AND ')} ORDER BY featured DESC, verified DESC, distance_km ASC LIMIT 100`, p);
     const d = await query(`SELECT DISTINCT district FROM jobs WHERE status='published' ORDER BY 1`);
     const t = me(req);
     track('job_search', '/jobs', req.query.lang || 'hi', district, t && t.role === 'user' ? t.sub : null);
@@ -512,7 +512,7 @@ function makeApp() {
     const local = localAssist(msg, jobs);
     if (aiEnabled()) {
       const ctx = local.jobs.map(j => `${j.title_hi} (${j.district}, ${j.pay_hi}, verified:${j.verified})`).join('; ');
-      const ai = await metaChat([
+      const { text: ai, metaStatus } = await metaChat([
         { role: 'system', content: SYSTEM },
         { role: 'user', content: `Question: ${msg}\nVerified context (use only this, never invent): ${ctx}` },
       ], 400);
@@ -521,6 +521,7 @@ function makeApp() {
         track('ai_help', '/help', lang, '', t ? t.sub : null);
         return res.json({ answer: ai, engine: 'meta:' + META_MODEL, jobs: local.jobs, disclaimer: lang === 'en' ? 'AI guidance — verified listings only from /api/jobs.' : 'AI मार्गदर्शन — सत्यापित सूची केवल /api/jobs से।' });
       }
+      return res.json({ answer: lang === 'en' ? local.reply_en : local.reply_hi, engine: 'local-kb', metaStatus, jobs: local.jobs });
     }
     res.json({ answer: lang === 'en' ? local.reply_en : local.reply_hi, engine: 'local-kb (no AI key)', jobs: local.jobs });
   });
