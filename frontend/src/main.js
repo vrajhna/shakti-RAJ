@@ -13,7 +13,7 @@ function shell() {
   const L = (p, ic, k) => `<a href="${p}" data-link>${ic} <span>${t(k)}</span></a>`;
   document.getElementById('side').innerHTML = `
     ${L('/', '🏠', 'home')}${L('/jobs', '🔍', 'jobs')}${L('/learn', '📚', 'learn')}${L('/hunar', '🌟', 'hunar')}
-    ${L('/learn', '📚', 'learn')}${L('/companies', '🏢', 'companies')}${L('/home-work', '🏠', 'home_work')}${L('/skills', '📚', 'learn')}${L('/schemes', '🏛️', 'schemes')}${L('/anganwadi', '👶', 'child')}
+    ${L('/companies', '🏢', 'companies')}${L('/home-work', '🏠', 'home_work')}${L('/skills', '📚', 'learn')}${L('/schemes', '🏛️', 'schemes')}${L('/anganwadi', '👶', 'child')}
     ${L('/shg', '🧵', 'shg')}${L('/business', '🚀', 'biz')}${L('/marketplace', '🛍️', 'market')}
     ${L('/voice', '🎤', 'ask_voice')}${L('/help', '🤖', 'help')}${L('/safety', '🛡️', 'safety')}
     <hr><div class="menu-ctl"><label>🌐 Language / भाषा / बोली</label>
@@ -25,7 +25,7 @@ function shell() {
         <button id="fontBtn">अ+ <small>${hi ? 'बड़ा' : 'Big'}</small></button>
         <button id="imgBtn">🖼️ <small>${hi ? 'फोटो बंद' : 'No pics'}</small></button>
       </div></div><hr>
-    ${L('/employer', '🏢', 'employer')}${L('/profile', '👩', 'signup')}${L('/admin', '🔐', 'admin')}
+    ${L('/employer', '🏢', 'employer')}${L('/profile', '👩', 'signup')}${L('/sso', '🏛️', 'sso_go')}${L('/admin', '🔐', 'admin')}
     ${L('/analytics', '📊', 'analytics')}${L('/pitch', '📑', 'pitch')}${L('/about', 'ℹ️', 'about')}
     ${L('/terms', '📜', 'terms')}${L('/privacy', '🔏', 'privacy')}${L('/data-safety', '🔐', 'datasec')}
     <div class="demo-note">🌸 SHAKTI • Rajasthan Innovation Challenge • Anganwadi = demo data</div>`;
@@ -79,7 +79,7 @@ Pages.home = async () => {
   const employers = empRes.employers || [];
   return `
   ${slideshow([
-    { img: IMG.woman, t: hi ? 'नमस्ते बहन 🙏' : 'Hello sister 🙏', s: hi ? 'आज क्या करेंगी? पास का सत्यापित काम' : 'What shall we do today? Verified nearby work' },
+    { img: IMG.shg, t: hi ? 'नमस्ते बहन 🙏' : 'Hello sister 🙏', s: hi ? 'आज क्या करेंगी? पास का सत्यापित काम' : 'What shall we do today? Verified nearby work' },
     { img: IMG.hero2, t: hi ? 'सिलाई-कढ़ाई जानती हैं?' : 'Know stitching & embroidery?', s: hi ? 'हुनर दिखाएं — प्रतिष्ठित कंपनियां खोज रही हैं' : 'Showcase skill — reputed companies are hiring' },
     { img: IMG.jewel, t: hi ? 'ज्वेलरी • पॉटरी • हस्तशिल्प' : 'Jewellery • pottery • handicraft', s: hi ? 'ब्रांड सीधे कारीगरों से जुड़ें' : 'Brands connect directly with artisans' },
     { img: IMG.field, t: hi ? 'राजस्थान की धरती' : 'Land of Rajasthan', s: hi ? 'मौसमी काम • समूह परिवहन • दैनिक भुगतान' : 'Seasonal work • group transport • daily pay' },
@@ -231,6 +231,17 @@ async function render() {
     app.innerHTML = html + `<div class="footer">🌸 SHAKTI.RAJ • ${S.token ? `<a href="/profile" data-link>👩 ${esc(S.profile.name || 'Profile')}</a>` : `<a href="/login" data-link>🔑 ${t('login')}</a> • <a href="/register" data-link>📝 ${t('signup')}</a>`} • <a href="/settings" data-link>⚙️</a> • <a href="/admin" data-link>🔐</a><br><a href="/terms" data-link>${t('terms')}</a> • <a href="/privacy" data-link>${t('privacy')}</a> • <a href="/data-safety" data-link>${t('datasec')}</a><br><span class="small">build ${(typeof __BUILD_TAG__ !== 'undefined' ? __BUILD_TAG__ : '')} • auto-deploy check</span></div>`;
     window.scrollTo(0, 0); track('page_view', path);
     if (/\/lesson\//.test(path) && window._startQuiz) { try { window._startQuiz(); } catch {} }
+    if (path === '/admin' && S.adminToken) {
+      (async () => {
+        try {
+          const lc = await api('/api/learn/courses?status=all');
+          const el = document.getElementById('learnAdmin');
+          if (el && lc.courses) el.innerHTML = lc.courses.map(c => `<div class="kv"><span>${c.id} • ${esc(c.title_hi).slice(0, 30)} • <b>${c.status}</b> • ${c.lessons || 0}L</span><span>${c.status !== 'published' ? `<button onclick="window._learnPub('${c.id}','published')">publish</button> ` : `<button onclick="window._learnPub('${c.id}','approved')">unpublish</button>`}</span></div>`).join('');
+          const an = await api('/api/learn/analytics').catch(() => null);
+          if (an && el) el.innerHTML += `<div class="kv"><span>📊 published ${an.counts.published} • lessons ${an.counts.lessons} • completions ${an.counts.completions} • learners ${an.counts.learners}</span></div>`;
+        } catch { }
+      })();
+    }
     if (path === '/jobs' && !document.getElementById('fq')) { /* filtered render */ }
   } catch (e) {
     app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:52px">🌸</div>

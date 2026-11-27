@@ -2,6 +2,7 @@ import { t } from './i18n.js';
 import { S, saveProfile, toast, esc, api, A, track, speak, listenInto, IMG, jobImg, vBadge, jobCard, hunarCard, slideshow, learnImg } from './ui.js';
 
 export function registerPages(Pages) {
+  if (typeof window._sndOn === 'undefined') { try { window._sndOn = localStorage.getItem('shakti_snd') === '1'; } catch { window._sndOn = false; } }
   const hi = () => S.lang !== 'en';
 
   /* ----- companies: reputed employers hiring directly ----- */
@@ -183,7 +184,7 @@ export function registerPages(Pages) {
     if (!d.profile) return '<p>Not found</p>';
     const h = d.profile;
     return `<a href="/hunar" data-link>← ${t('back')}</a><div class="card"><div class="hunar">
-    <div class="face">👩‍🎨</div><div><b style="font-size:22px">${esc(h.name)}</b> ${h.verified ? '<span class="badge b-green">✅ ' + (H ? 'सत्यापित' : 'Verified') + '</span>' : '<span class="badge b-orange">⏳</span>'}
+    <div class="face">${esc((h.photo_url && h.photo_url.length <= 8) ? h.photo_url : "👩‍🎨")}</div><div><b style="font-size:22px">${esc(h.name)}</b> ${h.verified ? '<span class="badge b-green">✅ ' + (H ? 'सत्यापित' : 'Verified') + '</span>' : '<span class="badge b-orange">⏳</span>'}
     <div class="kv"><span>${esc(h.village)}, ${esc(h.district)} • 👀 ${h.views}</span></div></div></div>
     <div style="margin:8px 0">${(h.skills || []).map(s => `<span class="skilltag">🧵 ${esc(s)}</span>`).join('')}</div>
     <div class="kv"><span>${H ? 'अनुभव' : 'Experience'}</span><b>${esc(h.experience || '—')}</b></div>
@@ -205,7 +206,10 @@ export function registerPages(Pages) {
     const H = hi();
     return `<h2>🌟 ${H ? 'मेरा हुनर जोड़ें' : 'Add my skill'}</h2>
     <div class="safebox">✅ ${H ? 'मुफ्त। जांच के बाद प्रकाशित। फोन नंबर सबको नहीं दिखता।' : 'Free. Published after verification. Phone stays masked.'}</div>
-    <div class="card"><label>${H ? 'आपका नाम *' : 'Your name *'}</label><input id="hname" value="${esc(S.profile.name)}">
+    <div class="card"><label>${H ? 'अपनी फोटो चुनें' : 'Pick your photo'}</label>
+    <div class="chips" id="hface">${['👩‍🎨','👩‍🍳','👩‍💼','🧕','👵','👩‍🦱'].map((f, i) => `<button type="button" class="chip ${i === 0 ? 'on' : ''}" onclick="window._hface(this)">${f}</button>`).join('')}</div>
+    <input type="hidden" id="hphoto" value="👩‍🎨">
+    <label>${H ? 'आपका नाम *' : 'Your name *'}</label><input id="hname" value="${esc(S.profile.name)}">
     <label>${H ? 'मोबाइल *' : 'Mobile *'}</label><input id="hphone" inputmode="numeric" value="${esc(S.profile.phone)}">
     <label>${H ? 'गांव' : 'Village'}</label><input id="hvill" value="${esc(S.profile.village)}">
     <label>${H ? 'आप क्या-क्या जानती हैं? (अलग-अलग लिखें) *' : 'Your skills (comma separated) *'}</label>
@@ -222,9 +226,13 @@ export function registerPages(Pages) {
     const v = b.textContent.trim();
     inp.value = cur.includes(v) ? cur.filter(x => x !== v).join(', ') : [...cur, v].join(', ');
   };
+  window._hface = (b) => {
+    document.querySelectorAll('#hface .chip').forEach(x => x.classList.remove('on'));
+    b.classList.add('on'); document.getElementById('hphoto').value = b.textContent.trim();
+  };
   window._doHunar = async () => {
     const skills = document.getElementById('hskills').value.split(',').map(s => s.trim()).filter(Boolean);
-    const r = await api('/api/hunar', { method: 'POST', body: JSON.stringify({ name: document.getElementById('hname').value, phone: document.getElementById('hphone').value, village: document.getElementById('hvill').value, skills, experience: document.getElementById('hexp').value, expected_work: document.getElementById('hexpw').value }) });
+    const r = await api('/api/hunar', { method: 'POST', body: JSON.stringify({ name: document.getElementById('hname').value, phone: document.getElementById('hphone').value, village: document.getElementById('hvill').value, skills, experience: document.getElementById('hexp').value, expected_work: document.getElementById('hexpw').value, photo: document.getElementById('hphoto').value }) });
     if (r.ok) { toast('✅ ' + (hi() ? 'हुनर भेजा!' : 'Submitted!')); history.back(); } else toast('⚠️ ' + (r.error || 'error'));
   };
   // /hunar/new + /hunar/:id routing hook (called from main render via route: param)
@@ -331,13 +339,20 @@ export function registerPages(Pages) {
     return `<h2>🤖 ${H ? 'SHAKTI सहायक' : 'SHAKTI assistant'}</h2>
     <div class="chatfull">
       <div class="chatbox" id="chatbox"><div class="msg b">🌸 ${H ? 'नमस्ते! मैं पूरी स्क्रीन पर आपकी मदद के लिए हूं। काम, हुनर, सुरक्षा — कुछ भी पूछें।' : 'Hello! I am here full-screen to help. Ask about work, skills, safety.'}</div></div>
-      <div class="chatqs">${qs.map(q => `<button class="chip" onclick="window._qAsk(this)" data-q="${esc(q)}">💬 ${esc(q)}</button>`).join('')}</div>
+      <div class="chatqs">${qs.map(q => `<button class="chip" onclick="window._qAsk(this)" data-q="${esc(q)}">💬 ${esc(q)}</button>`).join('')}<button class="chip" id="sndBtn" onclick="window._toggleSnd()">${(window._sndOn ? '🔊 ' : '🔇 ') + (window._sndOn ? (hi() ? 'आवाज़ चालू' : 'Sound on') : (hi() ? 'आवाज़ बंद' : 'Sound off'))}</button></div>
       <div class="chatinput"><div class="chatrow"><input id="hq" enterkeyhint="send" placeholder="${H ? 'पूछें… (Enter दबाएं)' : 'Ask… (press Enter)'}" autocomplete="off"><button class="btn yel" onclick="listenInto(document.getElementById('hq'))" aria-label="voice">🎤</button><button class="btn" onclick="window._doHelp()" aria-label="send">➤</button></div></div>
     </div>
     <div class="card"><b>📞 ${H ? 'हेल्पलाइन' : 'Helplines'}</b><div class="btnrow"><a class="btn warn" href="tel:181">📞 181</a><a class="btn warn" href="tel:1930">📞 1930</a><a class="btn warn" href="tel:112">📞 112</a></div></div>
     <div class="card"><b>💡 ${t('feedback')}</b><div class="chatrow"><input id="fb" placeholder="${H ? 'सुझाव लिखें…' : 'Write suggestion…'}"><button class="btn sec" onclick="window._doFeedback()">📩</button></div></div>`;
   };
   window._qAsk = (b) => { document.getElementById('hq').value = b.getAttribute('data-q'); window._doHelp(); };
+  window._toggleSnd = () => {
+    window._sndOn = !window._sndOn;
+    localStorage.setItem('shakti_snd', window._sndOn ? '1' : '0');
+    const b = document.getElementById('sndBtn'), H = S.lang !== 'en';
+    if (b) b.innerHTML = (window._sndOn ? '🔊 ' : '🔇 ') + (window._sndOn ? (H ? 'आवाज़ चालू' : 'Sound on') : (H ? 'आवाज़ बंद' : 'Sound off'));
+    if (!window._sndOn) try { speechSynthesis.cancel(); } catch { }
+  };
   window._doHelp = async () => {
     const q = document.getElementById('hq').value; if (!q.trim()) return;
     const box = document.getElementById('chatbox');
@@ -367,7 +382,8 @@ export function registerPages(Pages) {
       }
       if (el()) el().innerHTML = '💬 ' + esc(txt) + `<small>engine: ${esc(eng)} • ${((Date.now() - t0) / 1000).toFixed(1)}s</small>`;
       if (jobs.length) box.innerHTML += jobs.map(jobCard).join('');
-      box.scrollTop = box.scrollHeight; speak(txt.slice(0, 280));
+      box.scrollTop = box.scrollHeight;
+      if (window._sndOn) speak(txt.slice(0, 280));
     } catch {
       if (document.getElementById(bid)) document.getElementById(bid).innerHTML = '⚠️ ' + (S.lang === 'en' ? 'Connection issue — retry.' : 'संपर्क टूटा — दोबारा पूछें।');
     }
@@ -441,6 +457,7 @@ export function registerPages(Pages) {
     return `<h2>🔑 ${t('login')}</h2><div class="card"><label>${H ? 'मोबाइल' : 'Mobile'}</label><input id="lphone" inputmode="numeric" value="${esc(S.profile.phone)}">
     <label>${H ? '4-अंक PIN' : '4-digit PIN'}</label><input id="lpin" type="password" inputmode="numeric" maxlength="12">
     <button class="btn" style="width:100%" onclick="window._doLogin()">🔑 ${t('login')}</button>
+    <a class="btn sec" style="width:100%" href="/sso" data-link>🏛️ ${t('sso_go')}</a>
     <p style="text-align:center"><a href="/register" data-link>${t('signup')}</a></p></div>`;
   };
   Pages['route:register'] = async () => {
@@ -519,7 +536,11 @@ export function registerPages(Pages) {
     <div class="card"><h3>🌟 Hunar pending (${pendH.length})</h3>${pendH.slice(0, 10).map(p => `<div class="kv"><span>${esc(p.name)} • ${(p.skills || []).join(',')} • ${esc(p.district)} • ${esc(p.status)}</span><span><button onclick="window._mod('hunar','${p.id}','approved')">✓</button> <button onclick="window._mod('hunar','${p.id}','rejected')">✕</button></span></div>`).join('') || 'none'}</div>
     <div class="card"><h3>🚩 Reports (${(reps.reports || []).length})</h3>${(reps.reports || []).slice(0, 10).map(r => `<div class="kv"><span>${esc(r.id)} • ${esc(r.reason)} • ${esc(r.job_id || '')} • <b>${esc(r.status)}</b></span><span><button onclick="window._mod('report','${r.id}','actioned',true)">block</button> <button onclick="window._mod('report','${r.id}','reviewing')">review</button></span></div>`).join('')}</div>
     <div class="card"><h3>🏢 Employers (${(reps.employerRequests || []).length})</h3>${(reps.employerRequests || []).map(e => `<div class="kv"><span>${esc(e.name)} • ${esc(e.type)} • ${esc(e.status)}</span><span><button onclick="window._mod('employer','${e.id}','approved')">✓</button> <button onclick="window._mod('employer','${e.id}','rejected')">✕</button></span></div>`).join('') || 'none'}</div>
-    <div class="card"><h3>📋 Jobs</h3>${(jobs.jobs || []).map(j => `<div class="kv"><span>${j.id} ${j.verified ? '✅' : '⏳'} ${esc(j.title_hi).slice(0, 28)} • ${j.status}</span><span><button onclick="window._mod('job','${j.id}','suspended')">⛔</button> <button onclick="window._mod('job','${j.id}','published')">✓</button></span></div>`).join('')}</div>
+    <div class="card"><h3>📋 Jobs</h3>${(jobs.jobs || []).map(j => `<div class="kv"><span>${j.id} ${j.verified ? '✅' : '⏳'} ${esc(j.title_hi).slice(0, 28)} • ${j.status}</span><span>${j.status === 'pending' ? `<button onclick="window._mod('job','${j.id}','published',false,true)">✓+verify</button> ` : ''}<button onclick="window._mod('job','${j.id}','suspended')">⛔</button> <button onclick="window._mod('job','${j.id}','published')">✓</button></span></div>`).join('')}</div>
+    <div class="card"><h3>🎓 Learn CMS <span class="badge b-grey">draft→review→approved→published</span></h3><div id="learnAdmin">…</div>
+    <h3>➕ New course</h3><input id="lc_cat" placeholder="cat_id (e.g. tailoring)"><input id="lc_th" placeholder="शीर्षक (Hindi)"><input id="lc_te" placeholder="Title (English)"><input id="lc_desc" placeholder="विवरण"><input id="lc_jobs" placeholder="related jobs keyword"><button class="btn" onclick="window._learnCourse()">➕ Create (draft)</button>
+    <h3>➕ New lesson</h3><input id="ll_course" placeholder="courseId (e.g. lc-sewing)"><input id="ll_mod" placeholder="module title (new/existing)"><input id="ll_th" placeholder="पाठ शीर्षक"><textarea id="ll_body" rows="2" placeholder="पाठ (Hindi)"></textarea><textarea id="ll_steps" rows="2" placeholder="चरण — हर लाइन एक"></textarea><input id="ll_prac" placeholder="अभ्यास"><input id="ll_q" placeholder="सवाल|विकल्प1|विकल्प2|विकल्प3"><input id="ll_opts" placeholder="विकल्प हर लाइन एक (opt)">
+    <input id="ll_ans" type="number" min="0" max="5" value="0" placeholder="सही उत्तर नंबर"><button class="btn" onclick="window._learnLesson()">➕ Add lesson</button></div>
     <button class="btn sec" onclick="sessionStorage.removeItem('shakti_admin');S.adminToken='';location.href='/'">Logout</button>`;
   };
   window._doAdminLogin = async () => {
@@ -527,7 +548,18 @@ export function registerPages(Pages) {
     if (r.ok) { S.adminToken = r.token; S.adminRole = r.role || ''; sessionStorage.setItem('shakti_admin', r.token); sessionStorage.setItem('shakti_admin_role', S.adminRole); render(); }
     else toast('⚠️ ' + (r.error || 'error'));
   };
-  window._mod = async (kind, id, status, sj) => { await api('/api/admin/moderate', { method: 'POST', body: JSON.stringify({ kind, id, status, suspendJob: !!sj }) }); render(); };
+  window._mod = async (kind, id, status, sj, verified) => { const b = { kind, id, status, suspendJob: !!sj }; if (typeof verified === 'boolean') b.verified = verified; await api('/api/admin/moderate', { method: 'POST', body: JSON.stringify(b) }); render(); };
+  window._learnPub = async (id, status) => { await api('/api/admin/learn/publish', { method: 'POST', body: JSON.stringify({ id, status }) }); render(); };
+  window._learnCourse = async () => {
+    const v = (i) => document.getElementById(i).value;
+    const r = await api('/api/admin/learn/course', { method: 'POST', body: JSON.stringify({ cat_id: v('lc_cat'), title_hi: v('lc_th'), title_en: v('lc_te'), desc_hi: v('lc_desc'), img: 'shg', related_jobs: v('lc_jobs') }) });
+    if (r.ok) { toast('✅ ' + r.course.id); render(); } else toast('⚠️ ' + (r.error || 'error'));
+  };
+  window._learnLesson = async () => {
+    const v = (i) => document.getElementById(i).value;
+    const r = await api('/api/admin/learn/lesson', { method: 'POST', body: JSON.stringify({ courseId: v('ll_course'), module_th: v('ll_mod'), title_hi: v('ll_th'), body_hi: v('ll_body'), steps_hi: v('ll_steps').split('\\n').map(s => s.trim()).filter(Boolean), practice_hi: v('ll_prac'), qh: v('ll_q'), options: v('ll_opts').split('\\n').map(s => s.trim()).filter(Boolean), answer: Number(v('ll_ans') || 0) }) });
+    if (r.ok) { toast('✅ ' + r.lesson.id); render(); } else toast('⚠️ ' + (r.error || JSON.stringify(r.issues || 'error')));
+  };
 
   /* ----- analytics (public-safe) ----- */
   Pages['route:analytics'] = async () => {
@@ -543,13 +575,23 @@ export function registerPages(Pages) {
   /* ----- pitch + about ----- */
   Pages['route:pitch'] = async () => {
     const H = hi();
-    return `<a href="/" data-link>← SHAKTI</a><h2>📊 SHAKTI — Panel Pitch</h2>
-    <div class="card"><h3>1. ${H ? 'समस्या' : 'Problem'}</h3><p>${H ? '75% से अधिक ग्रामीण कामकाजी महिलाएं असंगठित कृषि श्रम में हैं। काम पास में होते हुए भी महिलाएं उसे खोज, पहुंच, भरोसा या बच्चों के साथ संतुलन नहीं कर पातीं।' : '75%+ rural working women are in informal agri labour. Even when work exists nearby, women cannot find, reach, trust, or balance it.'}</p></div>
-    <div class="card"><h3>2. ${H ? 'समाधान — एक महिला की कहानी' : 'Solution — one woman’s journey'}</h3><p>🔍 ${H ? 'पास का काम' : 'nearby work'} → 🏠 ${H ? 'घर से' : 'home'} → 🔊 ${H ? 'सुनें' : 'listen'} → 📝 3 ${H ? 'सवाल आवेदन' : 'question apply'} → 🌟 ${H ? 'हुनर दिखाएं' : 'showcase skill'} → 📚 ${H ? 'मुफ्त सीखें' : 'learn free'} → 👶 ${H ? 'आंगनवाड़ी' : 'childcare'} → 🔐 ${H ? 'एडमिन' : 'admin'}</p></div>
-    <div class="card"><h3>3. Safety</h3><p>${H ? 'सत्यापन (सरकारी/पंजीकृत/SHG/FPO/सहकारी) → अनुमोदन/निलंबन → पुनः जांच। अग्रिम फीस/OTP वाली सूची कभी नहीं। हेल्पलाइन 181/1930।' : 'Verification → approve/suspend → re-check. Never advance-fee/OTP listings. Helplines 181/1930.'}</p></div>
-    <div class="card"><h3>4. ₹22L ${H ? 'संकेत विभाजन (अनुमानित)' : 'indicative split'}</h3><p>Design 2.5 • Build 6 • Safety 2.5 • Content 2 • Data/APIs 2 • Pilot 2 • Hosting 1.5 • Training 1.5</p><p class="footer">${H ? 'चुनौती अनुमान — स्वीकृत बजट नहीं' : 'Challenge estimate — not approved budget'}</p></div>
-    <div class="card"><h3>5. Ask</h3><p>${H ? 'पायलट अनुमति + WCD आंगनवाड़ी डेटा + SHG रजिस्ट्री + SSO/Sewadwaar + SHG साझेदार। सफलता = आवेदन → साक्षात्कार → नियुक्ति + सुरक्षा।' : 'Pilot approval + WCD data + SHG registries + SSO/Sewadwaar + field partners.'}</p></div>`;
+    const rows = [
+      ['Product design & accessibility', '2,50,000'], ['Software development (platform + AI + apps)', '6,00,000'],
+      ['Verification & safety systems', '2,50,000'], ['Learning & content (24 domains, audio)', '2,00,000'],
+      ['Data integrations & APIs (SSO/Sewadwaar/WCD)', '2,00,000'], ['Pilot deployment & field testing', '2,00,000'],
+      ['Churu field office (rent, setup)', '2,00,000'], ['Local employment — 6 youth + 4 women', '3,00,000'],
+      ['Hosting, security & testing', '1,00,000'], ['Training, documentation & support', '1,00,000'],
+    ];
+    return `<a href="/" data-link>← SHAKTI.RAJ</a><h2>📊 SHAKTI.RAJ — Panel Pitch (₹22L)</h2>
+    <div class="card"><h3>1. ${H ? 'समस्या' : 'Problem'}</h3><p>${H ? '75% से अधिक ग्रामीण कामकाजी महिलाएं असंगठित कृषि श्रम में हैं। काम पास में होते हुए भी — खोज, पहुंच, भरोसा, बच्चों का संतुलन नहीं हो पाता। नई दुनिया (tech, HR, remote, business) के दरवाजे बंद हैं।' : '75%+ rural working women are in informal agri labour. Even when work exists nearby — no discovery, mobility, trust, or childcare balance. New-world doors (tech, HR, remote, business) stay shut.'}</p></div>
+    <div class="card"><h3>2. ${H ? 'समाधान — सीखने से कमाई तक' : 'Solution — learning to earning'}</h3><p>📚 ${H ? 'मुफ्त Learn University (24 श्रेणियां, 128 पाठ)' : 'Free Learn University (24 categories, 128 lessons)'} → 🌟 Hunar → 🏢 ${H ? 'कंपनियां सीधी भर्ती' : 'direct company hiring'} → 🚀 ${H ? 'खुद का व्यवसाय' : 'own business'} → 🛡️ ${H ? 'सुरक्षा हर कदम' : 'safety at every step'}</p></div>
+    <div class="card"><h3>3. Safety</h3><p>${H ? 'सत्यापन → अनुमोदन/निलंबन → 48 घंटे रिपोर्ट निवारण। अग्रिम फीस/OTP सूची कभी नहीं। 181/1930।' : 'Verification → approve/suspend → 48h report resolution. Never advance-fee/OTP listings. 181/1930.'}</p></div>
+    <div class="card"><h3>4. ₹22,00,000 ${H ? 'बजट (12 माह)' : 'budget (12 months)'}</h3><table>${rows.map(r => `<tr><td>${r[0]}</td><td>₹${r[1]}</td></tr>`).join('')}<tr><td><b>Total</b></td><td><b>₹22,00,000</b></td></tr></table>
+    <p class="footer">${H ? 'चुनौती अनुमान — स्वीकृत बजट नहीं। चूरू फील्ड ऑफिस + स्थानीय रोजगार (6 युवा + 4 महिलाएं) सहित।' : 'Challenge estimate — not approved budget. Incl. Churu field office + local employment (6 youth + 4 women).'}</p></div>
+    <div class="card"><h3>5. Ask</h3><p>${H ? 'पायलट अनुमति + WCD/SSO/Sewadwaar डेटा + SHG साझेदार। महिलाएं सीधे हमसे सीखेंगी — CSC, स्कूल, मेलों में।' : 'Pilot approval + WCD/SSO/Sewadwaar data + SHG partners. Women learn directly through us — at CSCs, schools, melas.'}</p>
+    <div class="btnrow"><a class="btn" href="/" data-link>🌸 ${H ? 'लाइव डेमो' : 'Live demo'}</a><a class="btn sec" href="/learn" data-link>📚 Learn</a></div></div>`;
   };
+    const H = hi();
   Pages['route:about'] = async () => {
     const H = hi();
     return `<h2>ℹ️ ${t('about')}</h2><div class="card"><p>${H ? 'राजस्थान की महिला श्रमशक्ति असंगतिपूर्वक असंगठित कृषि श्रम में केंद्रित है — 75% से अधिक ग्रामीण कामकाजी महिलाएं कृषक या कृषि मजदूर हैं — जबकि असुरक्षित आवागमन, बच्चों का बोझ और पास के औपचारिक अवसरों की अदृश्यता उन्हें बेहतर, स्थिर काम से दूर रखती है, भले ही ऐसा काम पास में हो।' : 'Rajasthan’s female workforce remains overwhelmingly concentrated in unpaid or low-productivity agricultural labour — over 75% of working rural women are cultivators or agricultural labourers — while unsafe mobility, childcare burden, and invisibility of nearby formal opportunities lock them out of better-paying, stable work, even when such work exists nearby.'}</p>
@@ -572,5 +614,22 @@ export function registerPages(Pages) {
     `<ul><li>पासवर्ड (PIN) हैश होकर सुरक्षित रहता है — टीम भी नहीं देख सकती।</li><li>सभी ट्रैफ़िक एन्क्रिप्टेड (HTTPS)। गुप्त चाबियां सिर्फ सर्वर पर।</li><li>OTP/आधार/बैंक डिटेल SHAKTI कभी नहीं मांगता — मांगे तो 1930 पर रिपोर्ट करें।</li><li>नियमित सुरक्षा जांच व ऑडिट लॉग।</li></ul>`,
     `<ul><li>PINs stored hashed — even the team cannot see them.</li><li>All traffic encrypted (HTTPS). Secrets stay server-side.</li><li>SHAKTI never asks OTP/Aadhaar/bank — if asked, report to 1930.</li><li>Regular security checks and audit logs.</li></ul>`);
 
+  Pages['route:sso'] = async (arg) => {
+    const H = hi(), qs = new URLSearchParams(location.search);
+    if (arg === 'callback' && qs.get('token')) {
+      S.token = qs.get('token'); localStorage.setItem('shakti_token', S.token);
+      try { const m = await api('/api/auth/me'); if (m.user) { S.profile = { name: m.user.name, phone: m.user.phone, village: m.user.village, district: m.user.district }; saveProfile(); } } catch { }
+      location.href = '/'; return '<p>…</p>';
+    }
+    const st = await api('/api/sso/status').catch(() => ({ configured: false, steps: [] }));
+    return `<h2>🏛️ Rajasthan SSO ${t('login')}</h2><div class="card">
+    ${st.configured
+      ? `<p>${H ? 'सरकारी SSO से सुरक्षित लॉगिन — कोई फर्जी लॉगिन नहीं।' : 'Secure login via govt SSO — never faked.'}</p><a class="btn" style="width:100%" href="${'/api/sso/login'}">🏛️ ${H ? 'SSO से लॉगिन' : 'Login with SSO'}</a>`
+      : `<div class="warnbox">⏳ ${H ? 'SSO सक्रियण हेतु विभाग credentials चाहिए। हम कभी सरकारी लॉगिन नकली नहीं बनाते।' : 'SSO needs dept credentials. We never fake a govt login.'}</div>
+      <p class="small">${H ? 'Raj Sewadwaar Manual v2.0 (DoIT&C) के अनुसार:' : 'Per Raj Sewadwaar Manual v2.0:'}</p>
+      <ul class="small">${(st.steps || []).map(s => `<li>${esc(s)}</li>`).join('')}</ul>
+      <div class="btnrow"><a class="btn sec" href="/login" data-link>🔑 ${t('login')}</a><a class="btn sec" href="/register" data-link>📝 ${t('signup')}</a></div>`}
+    ${qs.get('error') ? `<div class="warnbox">⚠️ ${esc(qs.get('error'))}</div>` : ''}</div>`;
+  };
   Pages['route:feedback'] = async () => { location.href = '/help'; return ''; };
 }

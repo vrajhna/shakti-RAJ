@@ -289,8 +289,8 @@ function makeApp() {
     if (!v.success) return res.status(400).json({ error: 'invalid input', issues: v.error.issues.slice(0, 5) });
     const t = me(req);
     const id = 'h' + Date.now().toString(36);
-    await query(`INSERT INTO hunar_profiles(id,user_id,name,phone,village,district,skills,experience,expected_work,available_home) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [id, t && t.role === 'user' ? t.sub : null, v.data.name, v.data.phone, v.data.village, v.data.district, v.data.skills, v.data.experience, v.data.expected_work, v.data.available_home]);
+    await query(`INSERT INTO hunar_profiles(id,user_id,name,phone,village,district,skills,experience,expected_work,available_home,photo_url) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [id, t && t.role === 'user' ? t.sub : null, v.data.name, v.data.phone, v.data.village, v.data.district, v.data.skills, v.data.experience, v.data.expected_work, v.data.available_home, v.data.photo || '👩‍🎨']);
     audit(t ? t.sub : v.data.phone, 'hunar_create', id);
     res.json({ ok: true, profile: { id }, message_hi: 'आपका हुनर प्रोफाइल मिल गया! जांच के बाद कंपनियां/SHG देख पाएंगे।', message_en: 'Skill profile received! Visible after verification.' });
   });
@@ -400,8 +400,10 @@ function makeApp() {
   // --- admin CMS ---
   app.post('/api/admin/learn/course', requireAdmin(['super_admin', 'moderator', 'verifier', 'content_editor']), validate(learnCourseSchema), async (req, res) => {
     const id = 'lc-' + Date.now().toString(36);
-    await query(`INSERT INTO learn_courses(id,cat_id,title_hi,title_en,desc_hi,level,dur,img,skills,related_jobs,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft')`,
-      [id, req.valid.cat_id, req.valid.title_hi, req.valid.title_en, req.valid.desc_hi, req.valid.level, req.valid.dur, req.valid.img, req.valid.skills, req.valid.related_jobs]);
+    try {
+      await query(`INSERT INTO learn_courses(id,cat_id,title_hi,title_en,desc_hi,level,dur,img,skills,related_jobs,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft')`,
+        [id, req.valid.cat_id, req.valid.title_hi, req.valid.title_en, req.valid.desc_hi, req.valid.level, req.valid.dur, req.valid.img, req.valid.skills, req.valid.related_jobs]);
+    } catch { return res.status(400).json({ error: 'invalid category — pick from /api/learn/categories' }); }
     audit(req.auth.sub, 'learn_course_create', id);
     res.json({ ok: true, course: { id } });
   });
@@ -513,7 +515,7 @@ function makeApp() {
       const ai = await metaChat([
         { role: 'system', content: SYSTEM },
         { role: 'user', content: `Question: ${msg}\nVerified context (use only this, never invent): ${ctx}` },
-      ], 700);
+      ], 400);
       if (ai) {
         const t = me(req);
         track('ai_help', '/help', lang, '', t ? t.sub : null);
@@ -540,7 +542,7 @@ function makeApp() {
       const full = await metaChatStream([
         { role: 'system', content: SYSTEM },
         { role: 'user', content: `Question: ${msg}\nVerified context (use only this, never invent): ${ctx || 'none'}` },
-      ], 700, (tok) => { say({ token: tok, firstTokenMs: first ? Date.now() - t0 : undefined }); first = false; });
+      ], 400, (tok) => { say({ token: tok, firstTokenMs: first ? Date.now() - t0 : undefined }); first = false; });
       if (full) {
         track('ai_help', '/help', lang, '', t ? t.sub : null);
         say({ done: true, ms: Date.now() - t0, engine: 'meta:' + META_MODEL, jobs: local.jobs.slice(0, 3) });
@@ -564,6 +566,67 @@ function makeApp() {
     const t = me(req);
     track(String(req.body.event || 'page_view').slice(0, 40), String(req.body.page || '/'), req.body.lang || 'hi', req.body.district || '', t ? t.sub : null);
     res.json({ ok: true });
+  });
+
+  /* ---------- Rajasthan SSO (OAuth2 authorization-code; activates on dept credentials) ---------- */
+  const SSO = {
+    clientId: process.env.SSO_CLIENT_ID || '',
+    secret: process.env.SSO_CLIENT_SECRET || '',
+    authUrl: process.env.SSO_AUTH_URL || 'https://sso.rajasthan.gov.in/signin',
+    tokenUrl: process.env.SSO_TOKEN_URL || 'https://sso.rajasthan.gov.in/token',
+    userUrl: process.env.SSO_USERINFO_URL || 'https://sso.rajasthan.gov.in/userinfo',
+    redirect: process.env.SSO_REDIRECT_URI || '',
+  };
+  const ssoStates = new Map();
+  app.get('/api/sso/status', (req, res) => res.json({
+    configured: !!SSO.clientId,
+    manual: 'Raj_Sewadwaar_Standard_User_Manual_v2.0 (DoIT&C, 15-09-2026)',
+    steps: SSO.clientId ? ['SSO configured — login active'] : [
+      '1. SSO portal par app register karke Client ID/Secret lein (manual §9)',
+      '2. Redirect URI register karein: <Railway-URL>/api/sso/callback',
+      '3. Railway Variables me SSO_CLIENT_ID / SSO_CLIENT_SECRET / SSO_REDIRECT_URI set karein',
+      '4. Sewadwaar par API product subscribe karke clientID gateway calls me jodein (manual §8/§10)',
+    ],
+  }));
+  app.get('/api/sso/login', (req, res) => {
+    if (!SSO.clientId) return res.status(503).json({ error: 'SSO not configured — see /api/sso/status', hint: 'Dept credentials required. We never fake a government login.' });
+    const st = require('crypto').randomBytes(16).toString('hex');
+    ssoStates.set(st, Date.now()); setTimeout(() => ssoStates.delete(st), 10 * 60e3);
+    const u = new URL(SSO.authUrl);
+    u.searchParams.set('client_id', SSO.clientId);
+    u.searchParams.set('redirect_uri', SSO.redirect);
+    u.searchParams.set('response_type', 'code');
+    u.searchParams.set('scope', 'openid profile');
+    u.searchParams.set('state', st);
+    res.redirect(u.toString());
+  });
+  app.get('/api/sso/callback', async (req, res) => {
+    const { code, state } = req.query;
+    const front = (process.env.FRONTEND_URLS || '').split(',')[0] || '/';
+    const fail = (m) => res.redirect(front.replace(/\/+$/, '') + '/sso?error=' + encodeURIComponent(m));
+    if (!code || !state || !ssoStates.has(String(state))) return fail('invalid session — retry login');
+    ssoStates.delete(String(state));
+    try {
+      const tr = await fetch(SSO.tokenUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ grant_type: 'authorization_code', code: String(code), redirect_uri: SSO.redirect, client_id: SSO.clientId, client_secret: SSO.secret }),
+      });
+      const tj = await tr.json().catch(() => ({}));
+      if (!tr.ok || !tj.access_token) throw new Error('token exchange failed');
+      const ur = await fetch(SSO.userUrl, { headers: { Authorization: 'Bearer ' + tj.access_token } });
+      const u = await ur.json().catch(() => ({}));
+      const ssoId = String(u.sub || u.id || u.ssoid || '');
+      if (!ssoId) throw new Error('no subject');
+      let row = (await query(`SELECT * FROM users WHERE sso_id=$1`, [ssoId])).rows[0];
+      if (!row) {
+        const id = 'u' + Date.now().toString(36);
+        await query(`INSERT INTO users(id,name,phone,pin_hash,village,sso_id) VALUES($1,$2,$3,$4,'','')`, [id, String(u.name || 'SSO User').slice(0, 80), 'sso:' + ssoId.slice(0, 20), await hashPin(require('crypto').randomBytes(8).toString('hex'))]);
+        row = (await query(`SELECT * FROM users WHERE id=$1`, [id])).rows[0];
+      }
+      audit(row.id, 'sso_login', '');
+      const tok = signUser(row);
+      res.redirect(front.replace(/\/+$/, '') + '/sso/callback?token=' + tok);
+    } catch (e) { audit('sso', 'login_fail', String(e.message || e).slice(0, 80)); fail('login failed — try again'); }
   });
 
   /* ---------- admin ---------- */

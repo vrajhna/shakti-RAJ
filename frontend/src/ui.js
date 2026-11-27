@@ -64,7 +64,7 @@ export function listenInto(inputEl, ontext) {
     r.start();
   } catch { toast('🎤 ' + needChrome); try { inputEl && inputEl.focus(); } catch { } }
 }
-const U = (id) => `https://images.unsplash.com/${id}?w=800&q=60&auto=format&fit=crop`;
+const U = (id) => `https://images.unsplash.com/${id}?w=640&q=55&auto=format&fit=crop`;
 export const IMG = {
   hero1: U('photo-1573497019940-1c28c88b4f3e'),
   hero2: U('photo-1558769132-cb1aea4585e5'),
@@ -120,13 +120,16 @@ export function jobCard(j) {
     </div>
   </div>`;
 }
+const SKILL_EN = {'सिलाई':'Stitching','कढ़ाई':'Embroidery','अचार':'Pickles','पापड़':'Papad','मसाले':'Spices','ब्यूटी':'Beauty','मेहंदी':'Henna','पॉटरी':'Pottery','ब्लू पॉटरी':'Blue pottery','डेयरी':'Dairy','पशु देखभाल':'Animal care','बुनाई':'Knitting','ब्लाउज':'Blouse','मिरर वर्क':'Mirror work','पेंटिंग':'Painting','पैकेजिंग':'Packaging','तौल-पैक':'Weigh-pack','बातचीत':'Communication','बोलना':'Speaking','मोबाइल चलाना':'Phone use','खाना बनाना':'Cooking','छंटाई':'Sorting','स्वास्थ्य':'Health','बच्चों की देखभाल':'Childcare'};
+export function skillLbl(s) { return S.lang === 'en' ? (SKILL_EN[String(s).trim()] || s) : s; }
 export function hunarCard(h) {
   const hi = S.lang !== 'en';
+  const face = (h.photo_url && h.photo_url.length <= 8) ? h.photo_url : '👩‍🎨';
   return `<div class="card"><div class="hunar">
-    <div class="face">👩‍🎨</div>
+    <div class="face">${esc(face)}</div>
     <div><b style="font-size:19px">${esc(h.name)}</b>
     <div class="kv"><span>${esc(h.village)}, ${esc(h.district)}${h.verified ? ' ✅' : ''}</span></div>
-    <div>${(h.skills || []).map(s => `<span class="skilltag">🧵 ${esc(s)}</span>`).join('')}</div>
+    <div>${(h.skills || []).map(s => `<span class="skilltag">🧵 ${esc(skillLbl(s))}</span>`).join('')}</div>
     <div class="kv"><span>${esc(h.experience || '')}</span></div>
     <div class="btnrow"><a class="btn sec" href="/hunar/${h.id}" data-link>${t('view')} ➜</a></div></div>
   </div></div>`;

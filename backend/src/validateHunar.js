@@ -11,6 +11,7 @@ const hunarSchema = z.object({
   experience: z.string().trim().max(300).optional().default(''),
   expected_work: z.string().trim().max(200).optional().default(''),
   available_home: z.boolean().optional().default(true),
+  photo: z.string().trim().max(20).optional().default(''),
 });
 const interestSchema = z.object({
   by_name: z.string().trim().min(2).max(80),
