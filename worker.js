@@ -18,12 +18,11 @@ export default {
           },
         });
       }
-      if (!env.API_URL) {
-        return new Response(JSON.stringify({ error: 'API not configured — set API_URL variable' }), {
-          status: 503, headers: { 'content-type': 'application/json' },
-        });
-      }
-      const target = env.API_URL.replace(/\/+$/, '') + url.pathname + url.search;
+      // Public backend address fallback. Secrets/keys NEVER live here —
+      // they stay in dashboards only. Dashboard API_URL (when set) always wins.
+      const FALLBACK_API = 'https://shakti-raj-production.up.railway.app';
+      const apiBase = (env.API_URL || FALLBACK_API).replace(/\/+$/, '');
+      const target = apiBase + url.pathname + url.search;
       const headers = new Headers();
       for (const h of ['content-type', 'authorization', 'accept', 'accept-language']) {
         const v = request.headers.get(h);
