@@ -79,7 +79,7 @@ Pages.home = async () => {
   const employers = empRes.employers || [];
   return `
   ${slideshow([
-    { img: IMG.shg, t: hi ? 'नमस्ते बहन 🙏' : 'Hello sister 🙏', s: hi ? 'आज क्या करेंगी? पास का सत्यापित काम' : 'What shall we do today? Verified nearby work' },
+    { img: IMG.field, t: hi ? 'नमस्ते बहन 🙏' : 'Hello sister 🙏', s: hi ? 'आज क्या करेंगी? पास का सत्यापित काम' : 'What shall we do today? Verified nearby work' },
     { img: IMG.hero2, t: hi ? 'सिलाई-कढ़ाई जानती हैं?' : 'Know stitching & embroidery?', s: hi ? 'हुनर दिखाएं — प्रतिष्ठित कंपनियां खोज रही हैं' : 'Showcase skill — reputed companies are hiring' },
     { img: IMG.jewel, t: hi ? 'ज्वेलरी • पॉटरी • हस्तशिल्प' : 'Jewellery • pottery • handicraft', s: hi ? 'ब्रांड सीधे कारीगरों से जुड़ें' : 'Brands connect directly with artisans' },
     { img: IMG.field, t: hi ? 'राजस्थान की धरती' : 'Land of Rajasthan', s: hi ? 'मौसमी काम • समूह परिवहन • दैनिक भुगतान' : 'Seasonal work • group transport • daily pay' },

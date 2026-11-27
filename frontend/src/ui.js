@@ -94,8 +94,8 @@ export function learnImg(c) {
   return m[k] || IMG.hero2;
 }
 export function jobImg(j) {
-  const m = { tailoring: IMG.hero2, food: IMG.hero3, beauty: IMG.beauty, craft: IMG.jewel, embroidery: IMG.hero2, livestock: IMG.dairy, agri: IMG.field, digital: IMG.shg, retail: IMG.market, govt: IMG.kids };
-  return m[j.category] || IMG.hero2;
+  const m = { tailoring: IMG.hero2, food: IMG.hero3, beauty: IMG.beauty, craft: IMG.jewel, embroidery: IMG.hero2, livestock: IMG.dairy, agri: IMG.field, digital: IMG.hero1, hr: IMG.hero1, finance: IMG.market, retail: IMG.market, govt: IMG.kids, export: IMG.jewel, general: IMG.hero2 };
+  return m[j.category] || IMG.field;
 }
 export function vBadge(j) {
   if (j.status === 'suspended') return `<span class="badge b-red">⛔ ${t('blocked_msg')}</span>`;
@@ -105,18 +105,19 @@ export function vBadge(j) {
 export function jobCard(j) {
   const hi = S.lang !== 'en';
   const blocked = j.status === 'suspended';
-  return `<div class="card">
-    ${blocked ? `<div class="warnbox">⛔ ${hi ? 'स्कैम पैटर्न पर ब्लॉक — सीखने हेतु दिख रही है। आवेदन बंद।' : 'Blocked scam-pattern demo. Applications closed.'}</div>` : ''}
-    <img class="imgcover ph" loading="lazy" decoding="async" src="${jobImg(j)}" onerror="this.style.display='none'" alt="">
-    <div style="margin-top:8px"><b style="font-size:19px">${esc(hi ? j.title_hi : j.title_en)}</b></div>
-    <div class="kv"><span>${esc(j.employer)} • ${esc(j.village)}, ${esc(j.district)}${j.distance_km ? ' • ' + j.distance_km + ' km' : ''}</span></div>
-    <div>${vBadge(j)}${j.home_based ? `<span class="badge b-blue">🏠 ${t('home_tag')}</span>` : ''}${j.childcare ? `<span class="badge b-green">👶 ${t('child_ok')}</span>` : ''}</div>
-    <div style="font-size:21px;font-weight:900;color:var(--green)">${esc(j.pay_hi)}</div>
-    <div class="kv"><span>⏰ ${esc(j.hours)}${j.part_time ? ' • ' + t('part_time') : ''}</span></div>
+  return `<div class="card jobrow">
+    <img class="jobthumb ph" loading="lazy" decoding="async" src="${jobImg(j)}" onerror="this.style.display='none'" alt="">
+    <div class="jobmain">
+    ${blocked ? `<div class="warnbox">⛔ ${hi ? 'स्कैम पैटर्न पर ब्लॉक — आवेदन बंद।' : 'Blocked scam pattern.'}</div>` : ''}
+    <b>${esc(hi ? j.title_hi : j.title_en)}</b>
+    <div class="meta">${esc(j.employer)} • ${esc(j.village)}, ${esc(j.district)}${j.distance_km ? ' • ' + j.distance_km + ' km' : ''}</div>
+    <div>${vBadge(j)}${j.home_based ? `<span class="badge b-blue">🏠 ${t('home_tag')}</span>` : ''}</div>
+    <div class="pay">${esc(j.pay_hi)}</div>
     <div class="btnrow">
-      <a class="btn" href="/jobs/${j.id}" data-link>${t('view')} ➜</a>
-      <button class="btn sec" onclick="window._saveJob('${j.id}')">♡ ${S.lang === 'en' ? 'Save' : 'सहेजें'}</button>
-      <button class="btn yel" data-speak="${esc(hi ? j.title_hi + '. ' + j.desc_hi : j.title_en + '. ' + j.desc_en).slice(0, 300)}">🔊 ${t('listen')}</button>
+      <a class="btn sm" href="/jobs/${j.id}" data-link>${t('view')} ➜</a>
+      <button class="btn sec sm" onclick="window._saveJob('${j.id}')">♡ ${S.lang === 'en' ? 'Save' : 'सहेजें'}</button>
+      <button class="btn yel sm" data-speak="${esc(hi ? j.title_hi + '. ' + j.desc_hi : j.title_en + '. ' + j.desc_en).slice(0, 300)}">🔊 ${t('listen')}</button>
+    </div>
     </div>
   </div>`;
 }

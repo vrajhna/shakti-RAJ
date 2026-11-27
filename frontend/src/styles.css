@@ -148,3 +148,13 @@ h2{font-size:23px;margin:20px 0 10px}h3{font-size:18px;margin:16px 0 8px}
 .ss-dots{bottom:58px}
 .legal h2{margin-top:6px}.legal li{margin:6px 0}
 .installbtn{position:relative}
+/* compact job rows (FARM.RAJ news pattern) */
+.jobrow{display:flex;gap:10px;align-items:flex-start}
+.jobthumb{width:84px;height:84px;object-fit:cover;border-radius:10px;flex-shrink:0;background:#FDE8F0}
+.jobmain{flex:1;min-width:0}
+.jobmain b{font-size:16.5px;line-height:1.35;display:block}
+.jobmain .meta{font-size:13px;color:var(--muted)}
+.jobmain .pay{font-size:17px;font-weight:800;color:var(--green)}
+.btn.sm{padding:8px 10px;font-size:14px;min-height:44px;margin:2px 4px 2px 0}
+.jobmain .btnrow{margin-top:6px}
+body.noimg img.jobthumb{display:none}
